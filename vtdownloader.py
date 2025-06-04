@@ -35,7 +35,7 @@ class VTDownloader:
             icon, self.tr("gsi_vt_downloader"), self.iface.mainWindow()
         )
         default_action.triggered.connect(
-            lambda: execAlgorithmDialog("gsivtdl:gsi_vector_tile_download", {})
+            lambda: execAlgorithmDialog("gsivtdl:gsi_vt_downloader", {})
         )
         tool_button.setDefaultAction(default_action)
 
