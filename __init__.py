@@ -1,7 +1,7 @@
-# プラグインのエントリーポイント
+# Plugin entry point
 
 
 def classFactory(iface):
-    from .plugin import Plugin
+    from .vtdownloader import VTDownloader
 
-    return Plugin(iface)
+    return VTDownloader(iface)

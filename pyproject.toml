@@ -1,6 +1,6 @@
 [project]
-name = "qgis-plugin-template"
-version = "0.1.0"
+name = "gsi-vt-downloader"
+version = "1.0.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -10,4 +10,19 @@ dependencies = []
 dev = [
     "pyqt5-stubs>=5.15.6.0",
     "ruff>=0.8.2",
+]
+
+[tool.ruff]
+exclude = ["exlib/"]
+
+[tool.ruff.lint]
+ignore = [
+    "E722",  # bare except
+    "E721",  # type comparison
+    "E741",  # ambiguous variable name
+    "E701",  # multiple statements on one line
+    "E713",  # not in
+    "F401",  # unused import
+    "F822",  # undefined name in __all__
+    "F841",  # unused variable
 ]
