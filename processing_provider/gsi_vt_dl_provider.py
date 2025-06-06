@@ -14,7 +14,7 @@ class GSIVectorTileProvider(QgsProcessingProvider):
         return "gsivtdl"
 
     def name(self, *args, **kwargs):
-        return self.tr("GSI vector tile Downloader")
+        return self.tr("GSI Vector Tile Downloader")
 
     def icon(self):
         path = (Path(__file__).parent.parent / "imgs" / "icon.png").resolve()

@@ -451,7 +451,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         return "gsi_vt_downloader"
 
     def displayName(self):
-        return self.tr("GSI vector tiles Downloader")
+        return self.tr("GSI Vector Tiles Downloader")
 
     def createInstance(self):
         return GSIVectorTileDownloadAlgorithm()
