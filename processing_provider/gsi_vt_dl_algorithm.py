@@ -9,7 +9,6 @@ from qgis.core import (
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
     QgsProcessingAlgorithm,
-    QgsProcessingParameterBoolean,
     QgsProcessingParameterEnum,
     QgsProcessingParameterExtent,
     QgsProcessingParameterFeatureSink,
@@ -30,7 +29,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     INPUT_EXTENT = "INPUT_EXTENT"
     SOURCE_LAYER = "SOURCE_LAYER"
     ZOOM_LEVEL = "ZOOM_LEVEL"
-    CLIP_TO_EXTENT = "CLIP_TO_EXTENT"
     OUTPUT = "OUTPUT"
 
     def _get_display_name(self, layer_key):
@@ -78,13 +76,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # Clip-to-extent
-        self.addParameter(
-            QgsProcessingParameterBoolean(
-                self.CLIP_TO_EXTENT, self.tr("Clip to extent"), defaultValue=True
-            )
-        )
-
         # Output-layer
         self.addParameter(
             QgsProcessingParameterFeatureSink(
@@ -101,15 +92,21 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             parameters, self.SOURCE_LAYER, context
         )
         zoom_level = self.parameterAsInt(parameters, self.ZOOM_LEVEL, context)
-        clip_to_extent = self.parameterAsBool(parameters, self.CLIP_TO_EXTENT, context)
 
-        # 入力のCRSを4326に変換
-        extent_crs = context.project().crs()
+        # convert extent to EPSG: 4326
+        extent_crs = self.parameterAsExtentCrs(parameters, self.INPUT_EXTENT, context)
+        feedback.pushInfo(f"Input extent CRS: {extent_crs.authid()}")
+
         if extent_crs.authid() != "EPSG:4326":
             transform = QgsCoordinateTransform(
                 extent_crs, QgsCoordinateReferenceSystem("EPSG:4326"), context.project()
             )
-            extent = transform.transformBoundingBox(extent)
+            try:
+                extent = transform.transformBoundingBox(extent)
+                feedback.pushInfo("Successfully transformed extent to EPSG:4326")
+            except Exception as e:
+                feedback.reportError(f"Coordinate transformation error: {str(e)}")
+                return {}
 
         leftbottom_lonlat = [extent.xMinimum(), extent.yMinimum()]
         righttop_lonlat = [extent.xMaximum(), extent.yMaximum()]
@@ -139,9 +136,10 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             return {}
 
         # クリップ処理
-        if clip_to_extent:
-            bbox = self.make_bbox(leftbottom_lonlat, righttop_lonlat)
-            mergedlayer = self.clip_vlayer(bbox, mergedlayer)
+        bbox = self.make_bbox(leftbottom_lonlat, righttop_lonlat)
+        mergedlayer = self.clip_vlayer(bbox, mergedlayer)
+        feedback.pushInfo("✓ Successfully clipped features to specified extent")
+        feedback.pushInfo(f"Final feature count: {mergedlayer.featureCount()}")
 
         layer_name = f"{display_name}_z{zoom_level}"
 
