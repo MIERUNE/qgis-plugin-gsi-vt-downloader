@@ -92,15 +92,21 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             parameters, self.SOURCE_LAYER, context
         )
         zoom_level = self.parameterAsInt(parameters, self.ZOOM_LEVEL, context)
-        clip_to_extent = True
 
-        # 入力のCRSを4326に変換
-        extent_crs = context.project().crs()
+        # convert extent to EPSG: 4326
+        extent_crs = self.parameterAsExtentCrs(parameters, self.INPUT_EXTENT, context)
+        feedback.pushInfo(f"Input extent CRS: {extent_crs.authid()}")
+
         if extent_crs.authid() != "EPSG:4326":
             transform = QgsCoordinateTransform(
                 extent_crs, QgsCoordinateReferenceSystem("EPSG:4326"), context.project()
             )
-            extent = transform.transformBoundingBox(extent)
+            try:
+                extent = transform.transformBoundingBox(extent)
+                feedback.pushInfo("Successfully transformed extent to EPSG:4326")
+            except Exception as e:
+                feedback.reportError(f"Coordinate transformation error: {str(e)}")
+                return {}
 
         leftbottom_lonlat = [extent.xMinimum(), extent.yMinimum()]
         righttop_lonlat = [extent.xMaximum(), extent.yMaximum()]
