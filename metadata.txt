@@ -1,8 +1,8 @@
 [general]
 name=qgis-plugin-gsi-vt-downloader
 qgisMinimumVersion=3.40
-about=A plugin to download and decode GSI-Vectortiles. User can choose zoom-level and source-layers to be downloaded. GSI is one of Japanese Governmental Organizations, stands for Geospatial Information Authority of Japan. https://www.gsi.go.jp
-description=地理院ベクトルタイルをダウンロードしベクターレイヤーとして読み込むためのプラグイン。A plugin to download and decode GSI Vectortiles.
+about=A plugin to download and decode <a href='https://www.gsi.go.jp'>Geospatial Information Authority of Japan (GSI)</a> vector tiles. User can choose zoom-level and source-layers to be downloaded.
+description=地理院ベクトルタイルをダウンロードしベクターレイヤーとして読み込むためのプラグイン。A plugin to download and decode GSI vector tiles.
 version={{PLUGIN_VERSION}}
 
 hasProcessingProvider=yes
@@ -16,5 +16,5 @@ email=info@mierune.co.jp
 homepage=https://github.com/MIERUNE/qgis-plugin-gsi-vt-downloader
 tracker=https://github.com/MIERUNE/qgis-plugin-gsi-vt-downloader/issues
 repository=https://github.com/MIERUNE/qgis-plugin-gsi-vt-downloader
-tags=python, vectortile, vector, gsi, download
+tags=python, vector tiles, vector, gsi, download
 category=Web
