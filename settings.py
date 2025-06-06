@@ -1,3 +1,8 @@
+GIS_VECTOR_TILE_URL = (
+    "https://cyberjapandata.gsi.go.jp/xyz/experimental_bvmap/{z}/{x}/{y}.pbf"
+)
+GIS_DOWNLOAD_TIMEOUT = 10
+
 SOURCE_LAYERS = {
     "symbol": {"category": "記号", "datatype": "点", "minzoom": 4, "maxzoom": 16},
     "boundary": {"category": "境界", "datatype": "線", "minzoom": 4, "maxzoom": 16},

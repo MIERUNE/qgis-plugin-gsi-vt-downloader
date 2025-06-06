@@ -229,7 +229,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             feedback.setProgress(download_progress)
 
             x, y, z = xyz
-            current_tileurl = f"https://cyberjapandata.gsi.go.jp/xyz/experimental_bvmap/{z}/{x}/{y}.pbf"
+            current_tileurl = settings.GIS_VECTOR_TILE_URL.format(z=z, x=x, y=y)
             target_path = os.path.join(TMP_PATH, str(z), str(x), f"{y}.pbf")
 
             feedback.pushInfo(f"Processing tile {i + 1}/{total_tiles}: {x}/{y}/{z}")
@@ -247,7 +247,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             if not os.path.exists(target_path):
                 try:
                     feedback.pushInfo(f"Downloading from: {current_tileurl}")
-                    response = urllib.request.urlopen(current_tileurl, timeout=10)
+                    response = urllib.request.urlopen(
+                        current_tileurl, timeout=settings.GIS_DOWNLOAD_TIMEOUT
+                    )
                     pbfdata = response.read()
 
                     if len(pbfdata) > 0:
