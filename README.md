@@ -10,7 +10,7 @@ QGIS3.x プラグイン開発のひな形
 2. install dependencies with uv
 
     ```sh
-    # macOS
+    # macOS  適切なQGISのディレクトリを参照すること(例：QGIS.app、QGIS-LTR.app)
     uv venv --python /Applications/QGIS.app/Contents/MacOS/bin/python3 --system-site-packages
     
     # Windows 適切なバージョンのQGISのディレクトリを参照すること
