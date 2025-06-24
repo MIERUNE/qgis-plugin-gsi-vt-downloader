@@ -18,8 +18,6 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 from .. import settings
-from ..exlib import tiletanic
-from ..exlib.shapely import geometry as shapely_geometry
 
 TMP_PATH = os.path.join(tempfile.gettempdir(), "vtdownloader")
 SOURCE_LAYERS = settings.SOURCE_LAYERS
@@ -119,7 +117,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"Downloading {layer_key} at zoom level {zoom_level}")
 
         # タイルインデックス
-        tileindex = self.make_tileindex(leftbottom_lonlat, righttop_lonlat, zoom_level)
+        tileindex = self.create_tile_index_from_bbox(
+            leftbottom_lonlat, righttop_lonlat, zoom_level
+        )
 
         if not tileindex:
             feedback.reportError("No tiles found for the specified extent")
@@ -161,23 +161,88 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             mergedlayer.setName(layer_name)
             return {self.OUTPUT: mergedlayer}
 
-    def make_tileindex(self, leftbottom_lonlat, righttop_lonlat, zoomlevel):
-        leftbottom_as_3857 = self.lonlat_to_webmercator(leftbottom_lonlat)
-        righttop_as_3857 = self.lonlat_to_webmercator(righttop_lonlat)
-        bbox_geometry = self.make_rectangle_of(leftbottom_as_3857, righttop_as_3857)
+    def create_tile_index_from_bbox(
+        self, leftbottom_lonlat, righttop_lonlat, zoom_level
+    ):
+        """
+        指定されたBBox(緯度経度)とズームレベルをカバーするタイルインデックスのリストを作成します。
+        `shapely`や`tiletanic`を使わずに、標準ライブラリのみで実装しています。
 
-        tiler = tiletanic.tileschemes.WebMercator()
-        feature_shape = shapely_geometry.shape(bbox_geometry)
+        Args:
+            leftbottom_lonlat (list[float, float]): 範囲の左下隅の座標 [経度, 緯度]
+            righttop_lonlat (list[float, float]): 範囲の右上隅の座標 [経度, 緯度]
+            zoom_level (int): ズームレベル
 
-        covering_tiles_itr = tiletanic.tilecover.cover_geometry(
-            tiler, feature_shape, zoomlevel
+        Returns:
+            list[list[int, int, int]]: タイルインデックス [x, y, z] のリスト
+        """
+        # 入力パラメータを展開
+        lon_min, lat_min = self.leftbottom_lonlat
+        lon_max, lat_max = self.righttop_lonlat
+
+        # 矩形範囲をカバーするタイルのX,Yの始点と終点を計算します。
+        # タイルのY座標は北が0で南に行くほど大きくなる点に注意してください。
+
+        # 左上 (最も小さい経度、最も大きい緯度) の座標から、
+        # 取得すべきタイルのX方向の始点(x_start)とY方向の始点(y_start)を求めます。
+        x_start_float, y_start_float = self._lonlat_to_tile_xy(
+            lon_min, lat_max, zoom_level
         )
+
+        # 右下 (最も大きい経度、最も小さい緯度) の座標から、
+        # 取得すべきタイルのX方向の終点(x_end)とY方向の終点(y_end)を求めます。
+        x_end_float, y_end_float = self._lonlat_to_tile_xy(lon_max, lat_min, zoom_level)
+
+        # 小数点以下を切り捨てて、整数のタイル番号を取得します。
+        x_start = math.floor(x_start_float)
+        x_end = math.floor(x_end_float)
+        y_start = math.floor(y_start_float)
+        y_end = math.floor(y_end_float)
+
+        # タイルインデックスのリストを生成
         covering_tiles = []
-        for tile in covering_tiles_itr:
-            tile_xyz = [tile[0], tile[1], tile[2]]
-            covering_tiles.append(tile_xyz)
+        z = zoom_level
+
+        # 計算した始点から終点までの範囲をループして、すべてのタイルを網羅します。
+        for x in range(x_start, x_end + 1):
+            for y in range(y_start, y_end + 1):
+                covering_tiles.append([x, y, z])
 
         return covering_tiles
+
+    def _lonlat_to_tile_xy(self, lon, lat, zoom_level):
+        """
+        緯度経度とズームレベルから、小数点数を含むタイル座標(X, Y)を計算します。
+        これはタイル番号を特定するための内部的な計算を行うヘルパー関数です。
+
+        Args:
+            lon (float): 経度 (-180から180)
+            lat (float): 緯度 (-85.0511から85.0511)
+            zoom_level (int): ズームレベル
+
+        Returns:
+            tuple[float, float]: 小数点数を含むタイル座標 (tile_x, tile_y)
+        """
+        # 緯度をラジアンに変換
+        lat_rad = math.radians(self.lat)
+
+        # ズームレベルに応じた世界のタイル数 (2のzoom_level乗)
+        n = 2.0**self.zoom_level
+
+        # タイルX座標を計算
+        # 経度を正規化(0-1)し、タイル数を掛ける
+        tile_x = (self.lon + 180.0) / 360.0 * n
+
+        # タイルY座標を計算（メルカトル図法の投影式）
+        # 緯度を正規化(0-1)し、タイル数を掛ける
+        # math.log(tan(lat) + 1/cos(lat)) は asinh(tan(lat)) と等価
+        tile_y = (
+            (1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi)
+            / 2.0
+            * n
+        )
+
+        return tile_x, tile_y
 
     def lonlat_to_webmercator(self, lonlat):
         return [
