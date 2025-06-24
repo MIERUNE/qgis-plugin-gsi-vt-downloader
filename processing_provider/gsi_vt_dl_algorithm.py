@@ -177,8 +177,8 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             list[list[int, int, int]]: タイルインデックス [x, y, z] のリスト
         """
         # 入力パラメータを展開
-        lon_min, lat_min = self.leftbottom_lonlat
-        lon_max, lat_max = self.righttop_lonlat
+        lon_min, lat_min = leftbottom_lonlat
+        lon_max, lat_max = righttop_lonlat
 
         # 矩形範囲をカバーするタイルのX,Yの始点と終点を計算します。
         # タイルのY座標は北が0で南に行くほど大きくなる点に注意してください。
