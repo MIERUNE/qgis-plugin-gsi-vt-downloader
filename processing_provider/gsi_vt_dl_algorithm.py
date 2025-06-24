@@ -227,7 +227,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         lat_rad = math.radians(lat)
 
         # ズームレベルに応じた世界のタイル数 (2のzoom_level乗)
-        n = 2.0**self.zoom_level
+        n = 2.0**zoom_level
 
         # タイルX座標を計算
         # 経度を正規化(0-1)し、タイル数を掛ける
