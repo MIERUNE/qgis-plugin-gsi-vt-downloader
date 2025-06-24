@@ -224,14 +224,14 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             tuple[float, float]: 小数点数を含むタイル座標 (tile_x, tile_y)
         """
         # 緯度をラジアンに変換
-        lat_rad = math.radians(self.lat)
+        lat_rad = math.radians(lat)
 
         # ズームレベルに応じた世界のタイル数 (2のzoom_level乗)
         n = 2.0**self.zoom_level
 
         # タイルX座標を計算
         # 経度を正規化(0-1)し、タイル数を掛ける
-        tile_x = (self.lon + 180.0) / 360.0 * n
+        tile_x = (lon + 180.0) / 360.0 * n
 
         # タイルY座標を計算（メルカトル図法の投影式）
         # 緯度を正規化(0-1)し、タイル数を掛ける
