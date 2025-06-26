@@ -201,19 +201,10 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
     def _lonlat_to_tile_xy(self, lon, lat, zoom_level):
         """緯度経度からタイル座標を計算"""
-        # 緯度をラジアンに変換
         lat_rad = math.radians(lat)
-
-        # ズームレベルに応じた世界のタイル数 (2のzoom_level乗)
         n = 2.0**zoom_level
 
-        # タイルX座標を計算
-        # 経度を正規化(0-1)し、タイル数を掛ける
         tile_x = (lon + 180.0) / 360.0 * n
-
-        # タイルY座標を計算（メルカトル図法の投影式）
-        # 緯度を正規化(0-1)し、タイル数を掛ける
-        # math.log(tan(lat) + 1/cos(lat)) は asinh(tan(lat)) と等価
         tile_y = (
             (1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi)
             / 2.0
