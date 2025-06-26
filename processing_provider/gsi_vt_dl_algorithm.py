@@ -174,7 +174,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
         x_end_float, y_end_float = self._lonlat_to_tile_xy(lon_max, lat_min, zoom_level)
 
-        # 小数点以下を切り捨てて、整数のタイル番号を取得します。
         x_start = math.floor(x_start_float)
         x_end = math.floor(x_end_float)
         y_start = math.floor(y_start_float)
