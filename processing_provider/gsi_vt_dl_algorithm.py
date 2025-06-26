@@ -183,7 +183,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         covering_tiles = []
         z = zoom_level
 
-        # 計算した始点から終点までの範囲をループして、すべてのタイルを網羅します。
         for x in range(x_start, x_end + 1):
             for y in range(y_start, y_end + 1):
                 covering_tiles.append([x, y, z])
