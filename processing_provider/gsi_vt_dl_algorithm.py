@@ -164,18 +164,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     def create_tile_index_from_bbox(
         self, leftbottom_lonlat, righttop_lonlat, zoom_level
     ):
-        """
-        指定されたBBox(緯度経度)とズームレベルをカバーするタイルインデックスのリストを作成します。
-        `shapely`や`tiletanic`を使わずに、標準ライブラリのみで実装しています。
-
-        Args:
-            leftbottom_lonlat (list[float, float]): 範囲の左下隅の座標 [経度, 緯度]
-            righttop_lonlat (list[float, float]): 範囲の右上隅の座標 [経度, 緯度]
-            zoom_level (int): ズームレベル
-
-        Returns:
-            list[list[int, int, int]]: タイルインデックス [x, y, z] のリスト
-        """
+        """指定されたBBoxとズームレベルをカバーするタイルインデックスを作成"""
         # 入力パラメータを展開
         lon_min, lat_min = leftbottom_lonlat
         lon_max, lat_max = righttop_lonlat
