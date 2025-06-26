@@ -211,18 +211,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         return covering_tiles
 
     def _lonlat_to_tile_xy(self, lon, lat, zoom_level):
-        """
-        緯度経度とズームレベルから、小数点数を含むタイル座標(X, Y)を計算します。
-        これはタイル番号を特定するための内部的な計算を行うヘルパー関数です。
-
-        Args:
-            lon (float): 経度 (-180から180)
-            lat (float): 緯度 (-85.0511から85.0511)
-            zoom_level (int): ズームレベル
-
-        Returns:
-            tuple[float, float]: 小数点数を含むタイル座標 (tile_x, tile_y)
-        """
+        """緯度経度からタイル座標を計算"""
         # 緯度をラジアンに変換
         lat_rad = math.radians(lat)
 
