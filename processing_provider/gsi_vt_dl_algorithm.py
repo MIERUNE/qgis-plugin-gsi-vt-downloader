@@ -172,8 +172,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             lon_min, lat_max, zoom_level
         )
 
-        # 右下 (最も大きい経度、最も小さい緯度) の座標から、
-        # 取得すべきタイルのX方向の終点(x_end)とY方向の終点(y_end)を求めます。
         x_end_float, y_end_float = self._lonlat_to_tile_xy(lon_max, lat_min, zoom_level)
 
         # 小数点以下を切り捨てて、整数のタイル番号を取得します。
