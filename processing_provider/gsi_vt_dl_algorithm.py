@@ -165,15 +165,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         self, leftbottom_lonlat, righttop_lonlat, zoom_level
     ):
         """指定されたBBoxとズームレベルをカバーするタイルインデックスを作成"""
-        # 入力パラメータを展開
         lon_min, lat_min = leftbottom_lonlat
         lon_max, lat_max = righttop_lonlat
 
-        # 矩形範囲をカバーするタイルのX,Yの始点と終点を計算します。
-        # タイルのY座標は北が0で南に行くほど大きくなる点に注意してください。
-
-        # 左上 (最も小さい経度、最も大きい緯度) の座標から、
-        # 取得すべきタイルのX方向の始点(x_start)とY方向の始点(y_start)を求めます。
         x_start_float, y_start_float = self._lonlat_to_tile_xy(
             lon_min, lat_max, zoom_level
         )
