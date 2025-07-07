@@ -114,6 +114,18 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         layer_keys = list(SOURCE_LAYERS.keys())
         layer_key = layer_keys[source_layer_index]
 
+        # Validate zoom level for the selected layer
+        layer_info = SOURCE_LAYERS[layer_key]
+        min_zoom = layer_info["minzoom"]
+        max_zoom = layer_info["maxzoom"]
+
+        if zoom_level < min_zoom or zoom_level > max_zoom:
+            feedback.reportError(
+                f"レイヤー '{layer_key}' はズーム{min_zoom}-{max_zoom}でのみ利用可能です。"
+                f"指定されたズーム{zoom_level}は範囲外です。"
+            )
+            return {}
+
         display_name = self._get_display_name(layer_key)
 
         feedback.pushInfo(f"Downloading {layer_key} at zoom level {zoom_level}")
