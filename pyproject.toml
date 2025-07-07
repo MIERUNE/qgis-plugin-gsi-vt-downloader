@@ -12,8 +12,6 @@ dev = [
     "ruff>=0.8.2",
 ]
 
-[tool.ruff]
-exclude = ["exlib/"]
 
 [tool.ruff.lint]
 ignore = [

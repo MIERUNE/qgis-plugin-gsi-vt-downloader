@@ -18,8 +18,6 @@ from qgis.core import (
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 from .. import settings
-from ..exlib import tiletanic
-from ..exlib.shapely import geometry as shapely_geometry
 
 TMP_PATH = os.path.join(tempfile.gettempdir(), "vtdownloader")
 SOURCE_LAYERS = settings.SOURCE_LAYERS
@@ -122,7 +120,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo(f"Downloading {layer_key} at zoom level {zoom_level}")
 
         # タイルインデックス
-        tileindex = self.make_tileindex(leftbottom_lonlat, righttop_lonlat, zoom_level)
+        tileindex = self.create_tile_index_from_bbox(
+            leftbottom_lonlat, righttop_lonlat, zoom_level
+        )
 
         if not tileindex:
             feedback.reportError("No tiles found for the specified extent")
@@ -164,23 +164,47 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             mergedlayer.setName(layer_name)
             return {self.OUTPUT: mergedlayer}
 
-    def make_tileindex(self, leftbottom_lonlat, righttop_lonlat, zoomlevel):
-        leftbottom_as_3857 = self.lonlat_to_webmercator(leftbottom_lonlat)
-        righttop_as_3857 = self.lonlat_to_webmercator(righttop_lonlat)
-        bbox_geometry = self.make_rectangle_of(leftbottom_as_3857, righttop_as_3857)
+    def create_tile_index_from_bbox(
+        self, leftbottom_lonlat, righttop_lonlat, zoom_level
+    ):
+        """指定されたBBoxとズームレベルをカバーするタイルインデックスを作成"""
+        lon_min, lat_min = leftbottom_lonlat
+        lon_max, lat_max = righttop_lonlat
 
-        tiler = tiletanic.tileschemes.WebMercator()
-        feature_shape = shapely_geometry.shape(bbox_geometry)
-
-        covering_tiles_itr = tiletanic.tilecover.cover_geometry(
-            tiler, feature_shape, zoomlevel
+        x_start_float, y_start_float = self._lonlat_to_tile_xy(
+            lon_min, lat_max, zoom_level
         )
+
+        x_end_float, y_end_float = self._lonlat_to_tile_xy(lon_max, lat_min, zoom_level)
+
+        x_start = math.floor(x_start_float)
+        x_end = math.floor(x_end_float)
+        y_start = math.floor(y_start_float)
+        y_end = math.floor(y_end_float)
+
+        # タイルインデックスのリストを生成
         covering_tiles = []
-        for tile in covering_tiles_itr:
-            tile_xyz = [tile[0], tile[1], tile[2]]
-            covering_tiles.append(tile_xyz)
+        z = zoom_level
+
+        for x in range(x_start, x_end + 1):
+            for y in range(y_start, y_end + 1):
+                covering_tiles.append([x, y, z])
 
         return covering_tiles
+
+    def _lonlat_to_tile_xy(self, lon, lat, zoom_level):
+        """緯度経度からタイル座標を計算"""
+        lat_rad = math.radians(lat)
+        n = 2.0**zoom_level
+
+        tile_x = (lon + 180.0) / 360.0 * n
+        tile_y = (
+            (1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi)
+            / 2.0
+            * n
+        )
+
+        return tile_x, tile_y
 
     def lonlat_to_webmercator(self, lonlat):
         return [
