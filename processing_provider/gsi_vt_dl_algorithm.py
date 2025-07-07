@@ -32,8 +32,11 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     def _get_display_name(self, layer_key):
         layer_value = SOURCE_LAYERS[layer_key]
         category = layer_value.get("category", "")
+        datatype = layer_value.get("datatype", "")
+        minzoom = layer_value.get("minzoom", "")
+        maxzoom = layer_value.get("maxzoom", "")
         if category:
-            return f"{layer_key}（{category}）"
+            return f"{category}（{datatype}）- Zoom {minzoom}-{maxzoom} [{layer_key}]"
         else:
             return layer_key
 
