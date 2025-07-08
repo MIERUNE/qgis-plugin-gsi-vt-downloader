@@ -23,7 +23,6 @@ TMP_PATH = os.path.join(tempfile.gettempdir(), "vtdownloader")
 SOURCE_LAYERS = settings.SOURCE_LAYERS
 DEFAULT_MIN_ZOOM = settings.DEFAULT_MIN_ZOOM
 DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
-
 class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     INPUT_EXTENT = "INPUT_EXTENT"
     SOURCE_LAYER = "SOURCE_LAYER"
