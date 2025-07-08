@@ -52,7 +52,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # Souece-layer
+        # Source-layer
         layer_options = []
         for key in SOURCE_LAYERS.keys():
             display_name = self._get_display_name(key)
@@ -117,7 +117,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         layer_keys = list(SOURCE_LAYERS.keys())
         layer_key = layer_keys[source_layer_index]
 
-        display_name = self._get_display_name(layer_key)
+        data_name = SOURCE_LAYERS[layer_key].get("category", "")
 
         # ズームレベルが対象レイヤーの範囲内かチェック
         layer_info = SOURCE_LAYERS[layer_key]
@@ -128,7 +128,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 f"【ズームレベルを変更してください】\n"
                 f"現在のズームレベル: {zoom_level} \n"
                 f"可能なズームレベル: {min_zoom}-{max_zoom} \n"
-                f"'{display_name}'のデータ範囲 (z{min_zoom}-{max_zoom}) 外です。処理を停止します。"
+                f"'{data_name}'のデータ範囲 (z{min_zoom}-{max_zoom}) 外です。処理を停止します。"
             )
             return {}
 
@@ -159,8 +159,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo("✓ Successfully clipped features to specified extent")
         feedback.pushInfo(f"Final feature count: {mergedlayer.featureCount()}")
 
-        layer_name = f"{display_name}_z{zoom_level}"
-
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUTPUT,
@@ -174,9 +172,13 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             features = mergedlayer.getFeatures()
             for feature in features:
                 sink.addFeature(feature)
+            
+            # Set layer name for temporary scratch layer
+            layer_name = f"{data_name}_z{zoom_level}"
+            layer_details = context.layerToLoadOnCompletionDetails(dest_id)
+            layer_details.name = layer_name
             return {self.OUTPUT: dest_id}
         else:
-            mergedlayer.setName(layer_name)
             return {self.OUTPUT: mergedlayer}
 
     def create_tile_index_from_bbox(
