@@ -175,8 +175,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             
             # Set layer name for temporary scratch layer
             layer_name = f"{data_name}_z{zoom_level}"
-            layer_details = context.layerToLoadOnCompletionDetails(dest_id)
-            layer_details.name = layer_name
+            if context.willLoadLayerOnCompletion(dest_id):
+                layer_details = context.layerToLoadOnCompletionDetails(dest_id)
+                layer_details.name = layer_name
             return {self.OUTPUT: dest_id}
         else:
             return {self.OUTPUT: mergedlayer}
