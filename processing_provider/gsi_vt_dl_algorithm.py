@@ -172,7 +172,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             features = mergedlayer.getFeatures()
             for feature in features:
                 sink.addFeature(feature)
-            
+
             # Set layer name for temporary scratch layer
             layer_name = f"{data_name}_z{zoom_level}"
             if context.willLoadLayerOnCompletion(dest_id):
