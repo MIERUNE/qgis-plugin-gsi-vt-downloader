@@ -119,8 +119,8 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
         # ズームレベルが対象レイヤーの範囲内かチェック
         layer_info = SOURCE_LAYERS[layer_key]
-        min_zoom = layer_info.get("minzoom", 4) # デフォルト値を設定
-        max_zoom = layer_info.get("maxzoom", 16) # デフォルト値を設定
+        min_zoom = layer_info.get("minzoom", DEFAULT_MIN_ZOOM) # デフォルト値を設定
+        max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM) # デフォルト値を設定
         if zoom_level < min_zoom or zoom_level > max_zoom:
             feedback.reportError(
                 f"【ズームレベルを変更してください】\n現在のズームレベル　: {zoom_level} \n 可能なズームレベル: {min_zoom}-{max_zoom} \n'{display_name}'のデータ範囲 (z{min_zoom}-{max_zoom}) 外です。処理を停止します。"
