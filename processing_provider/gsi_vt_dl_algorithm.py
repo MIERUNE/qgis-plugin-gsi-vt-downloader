@@ -30,7 +30,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     ZOOM_LEVEL = "ZOOM_LEVEL"
     OUTPUT = "OUTPUT"
 
-
     def _get_display_name(self, layer_key):
         layer_value = SOURCE_LAYERS[layer_key]
         category = layer_value.get("category", "")
