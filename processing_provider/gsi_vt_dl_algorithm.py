@@ -384,9 +384,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                     continue
 
                 if pbflayer.dataProvider().isValid() and pbflayer.featureCount() > 0:
-                    # processing_progress = int(70 + (i * 20 / total_tiles))
-                    # feedback.setProgress(processing_progress)
-
                     feedback.pushInfo(
                         f"Valid layer with {pbflayer.featureCount()} features"
                     )
