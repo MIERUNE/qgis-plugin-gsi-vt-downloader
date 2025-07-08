@@ -28,8 +28,8 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     SOURCE_LAYER = "SOURCE_LAYER"
     ZOOM_LEVEL = "ZOOM_LEVEL"
     OUTPUT = "OUTPUT"
-    DEFAULT_MIN_ZOOM = 4
-    DEFAULT_MAX_ZOOM = 16
+    DEFAULT_MIN_ZOOM = settings.DEFAULT_MIN_ZOOM
+    DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
 
     def _get_display_name(self, layer_key):
         layer_value = SOURCE_LAYERS[layer_key]
