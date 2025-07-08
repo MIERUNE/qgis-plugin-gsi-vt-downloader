@@ -54,7 +54,3 @@ SOURCE_LAYERS = {
 # データ型をDoubleにすべきフィールド名
 DOUBLE_FIELDS = ["arrngAgl", "alti", "depth"]
 
-
-# DEFAULT_MIN_ZOOM,DEFAULT_MAX_ZOOM
-DEFAULT_MIN_ZOOM = 4
-DEFAULT_MAX_ZOOM = 16
