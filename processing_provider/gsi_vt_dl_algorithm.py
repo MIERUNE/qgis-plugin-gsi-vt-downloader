@@ -21,6 +21,8 @@ from .. import settings
 
 TMP_PATH = os.path.join(tempfile.gettempdir(), "vtdownloader")
 SOURCE_LAYERS = settings.SOURCE_LAYERS
+DEFAULT_MIN_ZOOM = settings.DEFAULT_MIN_ZOOM
+DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
 
 
 class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
@@ -116,6 +118,19 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         layer_key = layer_keys[source_layer_index]
 
         display_name = self._get_display_name(layer_key)
+
+        # ズームレベルが対象レイヤーの範囲内かチェック
+        layer_info = SOURCE_LAYERS[layer_key]
+        min_zoom = layer_info.get("minzoom", DEFAULT_MIN_ZOOM)
+        max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM)
+        if zoom_level < min_zoom or zoom_level > max_zoom:
+            feedback.reportError(
+                f"【ズームレベルを変更してください】\n"
+                f"現在のズームレベル: {zoom_level} \n"
+                f"可能なズームレベル: {min_zoom}-{max_zoom} \n"
+                f"'{display_name}'のデータ範囲 (z{min_zoom}-{max_zoom}) 外です。処理を停止します。"
+            )
+            return {}
 
         feedback.pushInfo(f"Downloading {layer_key} at zoom level {zoom_level}")
 
