@@ -126,10 +126,10 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM)
         if zoom_level < min_zoom or zoom_level > max_zoom:
             feedback.reportError(
-                f"【ズームレベルを変更してください】\n"
-                f"現在のズームレベル: {zoom_level} \n"
-                f"可能なズームレベル: {min_zoom}-{max_zoom} \n"
-                f"'{data_name}'のデータ範囲 (z{min_zoom}-{max_zoom}) 外です。処理を停止します。"
+                f"Zoom level is not available for data '{layer_key}({data_name})' \n"
+                f"Specified zoom level: {zoom_level} \n"
+                f"Available zoom levels: {min_zoom}-{max_zoom} \n"
+                f"Process stopping..."
             )
             return {}
 
@@ -150,7 +150,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             feedback.reportError(
                 f"Too many tiles to download (Tiles limit: {TILES_LIMIT}).\n"
                 f"Please specified a zoom level lower than {zoom_level} "
-                "or a smaller extent.\n"
+                "or a smaller extent.\nProcess stopping..."
             )
             return {}
 
