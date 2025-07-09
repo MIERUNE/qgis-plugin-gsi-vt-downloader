@@ -23,6 +23,7 @@ TMP_PATH = os.path.join(tempfile.gettempdir(), "vtdownloader")
 SOURCE_LAYERS = settings.SOURCE_LAYERS
 DEFAULT_MIN_ZOOM = settings.DEFAULT_MIN_ZOOM
 DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
+TILES_LIMIT = settings.TILES_LIMIT
 
 
 class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
@@ -144,6 +145,14 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             return {}
 
         feedback.pushInfo(f"Found {len(tileindex)} tiles to download")
+
+        if len(tileindex) > TILES_LIMIT:
+            feedback.reportError(
+                f"Too many tiles to download (Tiles limit: {TILES_LIMIT}).\n"
+                f"Please specified a zoom level lower than {zoom_level} "
+                "or a smaller extent.\n"
+            )
+            return {}
 
         # ダウンロード実行
         os.makedirs(TMP_PATH, exist_ok=True)

@@ -57,3 +57,6 @@ DOUBLE_FIELDS = ["arrngAgl", "alti", "depth"]
 # デフォルトのズームレベル
 DEFAULT_MIN_ZOOM = 4
 DEFAULT_MAX_ZOOM = 16
+
+# ダウンロード可能のタイル数
+TILES_LIMIT = 5000
