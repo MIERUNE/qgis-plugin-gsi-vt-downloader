@@ -1,13 +1,16 @@
 # QGIS Plugin GSI-VT-downloader
+
 [English](#Overview) / [日本語](#概要)
 
 ## Overview
+
 This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS.
 You can find information about the GSI Vector Tiles on the following site: https://maps.gsi.go.jp/development/vt.html
 
 ![gsivt_demo](./imgs/gsivt.gif)
 
 ## Usage
+
 - Click this icon on the QGIS plugin tool bar.
 
 <img width="100" src="./imgs/icon.png" />
@@ -16,27 +19,28 @@ You can find information about the GSI Vector Tiles on the following site: https
 
 - Set the following parameters:
 
-  (1)  Download-extent  (By clicking the cursor icon on the right, the current map canvas extent will be selected)
-  
-  (2)  Source-Layer
+  (1) Download-extent (By clicking the cursor icon on the right, the current map canvas extent will be selected)
 
-  (3)  Zoom-level
+  (2) Source-Layer
 
-  (4)  Output-layer 
+  (3) Zoom-level
+
+  (4) Output-layer
 
 - Click Run.
 
 <img width="500" src="./imgs/parameters.png" />
 
-
 ## 概要
-このQGISプラグインは、国土地理院（GSI）のベクトルタイルをダウンロードし、QGISにレイヤとして追加します。
+
+この QGIS プラグインは、国土地理院（GSI）のベクトルタイルをダウンロードし、QGIS にレイヤとして追加します。
 
 国土地理院ベクトルタイルに関する情報は、以下のサイトから確認できます。
 https://maps.gsi.go.jp/development/vt.html
 
 ## 使い方
-- QGISのツールバーにあるこのアイコンをクリックします。
+
+- QGIS のツールバーにあるこのアイコンをクリックします。
 
   <img width="100" src="./imgs/icon.png" />
 
@@ -44,10 +48,9 @@ https://maps.gsi.go.jp/development/vt.html
 
 - 以下の情報を入力して、目的のベクタータイルを選択します。
 
-
   (1) ダウンロード範囲
-  
-    右側のカーソルアイコンをクリックすると、現在のキャンバスマップの範囲が選択されます。
+
+  右側のカーソルアイコンをクリックすると、現在のキャンバスマップの範囲が選択されます。
 
   (2) ソースレイヤー
 
@@ -59,5 +62,7 @@ https://maps.gsi.go.jp/development/vt.html
 
 <img width="500" src="./imgs/parameters.png" />
 
----------------------------------------------------------------------------------------------
+## Authors
 
+- Updated successor to [GSI-VTDownloader](https://github.com/Kanahiro/GSI-VTDownloader)
+- MIERUNE Inc.
