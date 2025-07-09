@@ -26,6 +26,11 @@ DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
 _DESCRIPTION = """
 This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS.
 You can find information about the GSI Vector Tiles on the following site: <a href='https://maps.gsi.go.jp/development/vt.html'>https://maps.gsi.go.jp/development/vt.html</a>
+
+このQGISプラグインは、国土地理院（GSI）のベクトルタイルをダウンロードし、QGISにレイヤとして追加します。
+国土地理院ベクトルタイルに関する情報は、以下のサイトから確認できます。
+<a href='https://maps.gsi.go.jp/development/vt.html'>https://maps.gsi.go.jp/development/vt.html</a>
+
 """
 TILES_LIMIT = settings.TILES_LIMIT
 
