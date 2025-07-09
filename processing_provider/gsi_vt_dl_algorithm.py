@@ -27,6 +27,8 @@ _DESCRIPTION = """
 This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS.
 You can find information about the GSI Vector Tiles on the following site: <a href='https://maps.gsi.go.jp/development/vt.html'>https://maps.gsi.go.jp/development/vt.html</a>
 """
+TILES_LIMIT = settings.TILES_LIMIT
+
 
 class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     INPUT_EXTENT = "INPUT_EXTENT"
@@ -58,7 +60,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # Souece-layer
+        # Source-layer
         layer_options = []
         for key in SOURCE_LAYERS.keys():
             display_name = self._get_display_name(key)
@@ -123,7 +125,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         layer_keys = list(SOURCE_LAYERS.keys())
         layer_key = layer_keys[source_layer_index]
 
-        display_name = self._get_display_name(layer_key)
+        data_name = SOURCE_LAYERS[layer_key].get("category", "")
 
         # ズームレベルが対象レイヤーの範囲内かチェック
         layer_info = SOURCE_LAYERS[layer_key]
@@ -131,10 +133,10 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM)
         if zoom_level < min_zoom or zoom_level > max_zoom:
             feedback.reportError(
-                f"【ズームレベルを変更してください】\n"
-                f"現在のズームレベル: {zoom_level} \n"
-                f"可能なズームレベル: {min_zoom}-{max_zoom} \n"
-                f"'{display_name}'のデータ範囲 (z{min_zoom}-{max_zoom}) 外です。処理を停止します。"
+                f"Specified zoom level (z{zoom_level}) is not available "
+                f"for data '{layer_key} ({data_name})' \n"
+                f"Available zoom levels: {min_zoom}-{max_zoom} \n"
+                f"Process stopping..."
             )
             return {}
 
@@ -151,6 +153,14 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
         feedback.pushInfo(f"Found {len(tileindex)} tiles to download")
 
+        if len(tileindex) > TILES_LIMIT:
+            feedback.reportError(
+                f"Too many tiles to download (Tiles limit: {TILES_LIMIT}).\n"
+                f"Please specified a zoom level lower than z{zoom_level} "
+                "or a smaller extent.\nProcess stopping..."
+            )
+            return {}
+
         # ダウンロード実行
         os.makedirs(TMP_PATH, exist_ok=True)
         mergedlayer = self.download_tiles(tileindex, layer_key, feedback)
@@ -165,8 +175,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         feedback.pushInfo("✓ Successfully clipped features to specified extent")
         feedback.pushInfo(f"Final feature count: {mergedlayer.featureCount()}")
 
-        layer_name = f"{display_name}_z{zoom_level}"
-
         (sink, dest_id) = self.parameterAsSink(
             parameters,
             self.OUTPUT,
@@ -180,9 +188,14 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             features = mergedlayer.getFeatures()
             for feature in features:
                 sink.addFeature(feature)
+
+            # Set layer name for temporary scratch layer
+            layer_name = f"{data_name}_z{zoom_level}"
+            if context.willLoadLayerOnCompletion(dest_id):
+                layer_details = context.layerToLoadOnCompletionDetails(dest_id)
+                layer_details.name = layer_name
             return {self.OUTPUT: dest_id}
         else:
-            mergedlayer.setName(layer_name)
             return {self.OUTPUT: mergedlayer}
 
     def create_tile_index_from_bbox(
@@ -387,9 +400,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                     continue
 
                 if pbflayer.dataProvider().isValid() and pbflayer.featureCount() > 0:
-                    processing_progress = int(70 + (i * 20 / total_tiles))
-                    feedback.setProgress(processing_progress)
-
                     feedback.pushInfo(
                         f"Valid layer with {pbflayer.featureCount()} features"
                     )
