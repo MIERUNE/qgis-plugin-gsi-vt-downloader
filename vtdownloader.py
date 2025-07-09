@@ -47,4 +47,4 @@ class VTDownloader:
             del self.toolButtonAction
 
     def tr(self, message):
-        return QgsApplication.translate("GSI Vector Tile Downloader", message)
+        return QgsApplication.translate("GSI Vector Tiles Downloader", message)
