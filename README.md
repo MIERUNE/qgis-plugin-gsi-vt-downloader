@@ -8,7 +8,7 @@ You can find information about the GSI Vector Tiles on the following site: https
 ## Usage
 The plugin will be added under Plugins -> GSI-VT-downloader in the menu.
 You can also find this icon on the QGIS toolbar.
-![](./icon.png)
+![GSI-VT-downloader_icon](https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7)
 Select the vector tile map you want to add from the dialog and click OK.
 <img src="./docs/img/ui_ja.png" alt="" width="500">
 
@@ -21,7 +21,8 @@ https://maps.gsi.go.jp/help/howtouse.html#vector
 ## 使い方
 プラグインはメニューバーの プラグイン -> GSI-VT-downloader に追加されます。
 以下のアイコンはツールバーにも表示されます。
-![](./icon.png)
+![GSI-VT-downloader_icon](https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7)
+
 ダイアログから追加したいベクトルタイルマップを選択し、OKボタンを押して実行します。
 <img src="./docs/img/ui_ja.png" alt="" width="500">
 
