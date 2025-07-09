@@ -26,7 +26,7 @@ You can find information about the GSI Vector Tiles on the following site: https
 
 - Click Run.
 
-![gsivt_parameters](./imgs/parameters.png)
+<img width="500" src="./imgs/parameters.png" />
 
 
 ## 概要
@@ -57,7 +57,7 @@ https://maps.gsi.go.jp/development/vt.html
 
 - 「実行」をクリックします。
 
-![gsivt_parameters](./imgs/parameters.png)
+<img width="500" src="./imgs/parameters.png" />
 
 ---------------------------------------------------------------------------------------------
 
