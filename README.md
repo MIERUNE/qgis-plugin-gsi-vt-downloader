@@ -8,9 +8,10 @@ You can find information about the GSI Vector Tiles on the following site: https
 ![qgis-plugin-gsi-vt-downloader_ver6](https://github.com/user-attachments/assets/7f77552d-807e-4fd6-b438-9aca58a94c3b)
 
 ## Usage
-- Click this icon on the QGIS toolbar.
+- Click this icon on the QGIS plugin tool bar.
 
 <img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
+- You can also find it in the Processing Toolbox -> GSI vector tile downloader.
 
 - Fill in the following information to select the vector tile you want:
   1. Download-extent
@@ -36,6 +37,8 @@ You can find information about the GSI Vector Tiles on the following site: https
 - QGISのツールバーにあるこのアイコンをクリックします。
 
   <img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
+
+- [プロセッシングツールボックス] -> [GSI vector tile downloader]　でも探せます
 
 - 以下の情報を入力して、目的のベクタータイルを選択します。
 
