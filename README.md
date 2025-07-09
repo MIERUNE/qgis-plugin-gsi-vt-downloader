@@ -5,12 +5,12 @@
 This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS.
 You can find information about the GSI Vector Tiles on the following site: https://maps.gsi.go.jp/development/vt.html
 
-![qgis-plugin-gsi-vt-downloader_ver6](https://github.com/user-attachments/assets/7f77552d-807e-4fd6-b438-9aca58a94c3b)
+![gsivt_demo](./imgs/gsivt.gif)
 
 ## Usage
 - Click this icon on the QGIS plugin tool bar.
 
-<img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
+<img width="100" src="./imgs/icon.png" />
 
 - You can also find it in the Processing Toolbox -> GSI vector tiles downloader.
 
@@ -26,7 +26,7 @@ You can find information about the GSI Vector Tiles on the following site: https
 
 - Click Run.
 
-<img width="500" alt="Screenshot 2025-07-09 at 14 48 38" src="https://github.com/user-attachments/assets/f62014ee-83bf-434e-9f87-3d0a2b9ec593" />
+![gsivt_parameters](./imgs/parameters.png)
 
 
 ## 概要
@@ -38,7 +38,7 @@ https://maps.gsi.go.jp/development/vt.html
 ## 使い方
 - QGISのツールバーにあるこのアイコンをクリックします。
 
-  <img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
+  <img width="100" src="./imgs/icon.png" />
 
 - [プロセッシングツールボックス] -> [GSI vector tiles downloader]　でも探せます
 
@@ -57,7 +57,7 @@ https://maps.gsi.go.jp/development/vt.html
 
 - 「実行」をクリックします。
 
-<img width="500" alt="Screenshot 2025-07-09 at 14 48 38" src="https://github.com/user-attachments/assets/f62014ee-83bf-434e-9f87-3d0a2b9ec593" />
+![gsivt_parameters](./imgs/parameters.png)
 
 ---------------------------------------------------------------------------------------------
 
