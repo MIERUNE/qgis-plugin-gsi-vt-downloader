@@ -8,7 +8,7 @@ You can find information about the GSI Vector Tiles on the following site: https
 ![qgis-plugin-gsi-vt-downloader_ver6](https://github.com/user-attachments/assets/7f77552d-807e-4fd6-b438-9aca58a94c3b)
 
 ## Usage
-- The plugin could be used by clicking this icon on the QGIS toolbar.
+- Click this icon on the QGIS toolbar.
 
 <img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
 
