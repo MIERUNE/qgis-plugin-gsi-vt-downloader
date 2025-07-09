@@ -5,12 +5,15 @@
 This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS.
 You can find information about the GSI Vector Tiles on the following site: https://maps.gsi.go.jp/development/vt.html
 
+![qgis-plugin-gsi-vt-downloader_ver6](https://github.com/user-attachments/assets/7f77552d-807e-4fd6-b438-9aca58a94c3b)
+
 ## Usage
-The plugin will be added under Plugins -> GSI-VT-downloader in the menu.
-You can also find this icon on the QGIS toolbar.
-![GSI-VT-downloader_icon](https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7)
+The plugin could be used by clicking this icon on the QGIS toolbar.
+
+<img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
+
 Select the vector tile map you want to add from the dialog and click OK.
-<img src="./docs/img/ui_ja.png" alt="" width="500">
+
 
 ## 概要
 このQGISプラグインは、国土地理院（GSI）のベクトルタイルをダウンロードし、QGISにレイヤとして追加します。
