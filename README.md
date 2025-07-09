@@ -1,4 +1,4 @@
-# QGIS Plugin GSI-VT-downloader
+# GSI Vector Tiles Downloader
 
 [English](#Overview) / [日本語](#概要)
 
