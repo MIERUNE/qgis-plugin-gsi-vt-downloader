@@ -11,16 +11,18 @@ You can find information about the GSI Vector Tiles on the following site: https
 - Click this icon on the QGIS plugin tool bar.
 
 <img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
+
 - You can also find it in the Processing Toolbox -> GSI vector tile downloader.
 
-- Fill in the following information to select the vector tile you want:
-  1. Download-extent
+- Set the following parameters:
 
-     (By clicking the cursor icon on the right, the current map canvas extent can be chosen)
-     
-  2. Source-Layer
-  3. Zoom-level
-  4. Output-layer 
+  (1)  Download-extent  (By clicking the cursor icon on the right, the current map canvas extent will be selected)
+  
+  (2)  Source-Layer
+
+  (3)  Zoom-level
+
+  (4)  Output-layer 
 
 - Click Run.
 
@@ -31,7 +33,7 @@ You can find information about the GSI Vector Tiles on the following site: https
 このQGISプラグインは、国土地理院（GSI）のベクトルタイルをダウンロードし、QGISにレイヤとして追加します。
 
 国土地理院ベクトルタイルに関する情報は、以下のサイトから確認できます。
-[https://maps.gsi.go.jp/help/howtouse.html#vector](https://maps.gsi.go.jp/development/vt.html)
+https://maps.gsi.go.jp/development/vt.html
 
 ## 使い方
 - QGISのツールバーにあるこのアイコンをクリックします。
@@ -42,13 +44,16 @@ You can find information about the GSI Vector Tiles on the following site: https
 
 - 以下の情報を入力して、目的のベクタータイルを選択します。
 
-  1. ダウンロード範囲
-  
-  （右側のカーソルアイコンをクリックすると、現在のキャンバスマップの範囲が選択されます。）
 
-  2. ソースレイヤー
-  3. ズームレベル
-  4. 出力レイヤー（オプション）
+  (1) ダウンロード範囲
+  
+    右側のカーソルアイコンをクリックすると、現在のキャンバスマップの範囲が選択されます。
+
+  (2) ソースレイヤー
+
+  (3) ズームレベル
+
+  (4) 出力レイヤー（オプション）
 
 - 「実行」をクリックします。
 
