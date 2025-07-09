@@ -8,11 +8,22 @@ You can find information about the GSI Vector Tiles on the following site: https
 ![qgis-plugin-gsi-vt-downloader_ver6](https://github.com/user-attachments/assets/7f77552d-807e-4fd6-b438-9aca58a94c3b)
 
 ## Usage
-The plugin could be used by clicking this icon on the QGIS toolbar.
+- The plugin could be used by clicking this icon on the QGIS toolbar.
 
 <img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
 
-Select the vector tile map you want to add from the dialog and click OK.
+- Select the vector tile you want by filling the following information:
+  1. Download-extent
+
+     (By clicking the cursor icon on the right, the current map canvas extent can be chosen)
+     
+  2. Source-Layer
+  3. Zoom-level
+  4. Output-layer 
+
+- Click Run.
+
+<img width="500" alt="Screenshot 2025-07-09 at 14 48 38" src="https://github.com/user-attachments/assets/f62014ee-83bf-434e-9f87-3d0a2b9ec593" />
 
 
 ## 概要
@@ -22,11 +33,23 @@ Select the vector tile map you want to add from the dialog and click OK.
 [https://maps.gsi.go.jp/help/howtouse.html#vector](https://maps.gsi.go.jp/development/vt.html)
 
 ## 使い方
-プラグインはメニューバーの プラグイン -> GSI-VT-downloader に追加されます。
-以下のアイコンはツールバーにも表示されます。
+- QGISのツールバーにあるこのアイコンをクリックすると、プラグインが使えます。
 
-ダイアログから追加したいベクトルタイルマップを選択し、OKボタンを押して実行します。
-<img src="./docs/img/ui_ja.png" alt="" width="500">
+  <img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
+
+- 以下の情報を入力して、目的のベクタータイルを選択します。
+
+  1. ダウンロード範囲
+  
+  （右側のカーソルアイコンをクリックすると、現在のキャンバスマップの範囲が選択されます。）
+
+  2. ソースレイヤー
+  3. ズームレベル
+  4. 出力レイヤー（オプション）
+
+- 「実行」をクリックします。
+
+<img width="500" alt="Screenshot 2025-07-09 at 14 48 38" src="https://github.com/user-attachments/assets/f62014ee-83bf-434e-9f87-3d0a2b9ec593" />
 
 ---------------------------------------------------------------------------------------------
 
