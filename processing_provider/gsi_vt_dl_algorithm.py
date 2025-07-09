@@ -23,6 +23,7 @@ TMP_PATH = os.path.join(tempfile.gettempdir(), "vtdownloader")
 SOURCE_LAYERS = settings.SOURCE_LAYERS
 DEFAULT_MIN_ZOOM = settings.DEFAULT_MIN_ZOOM
 DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
+TILES_LIMIT = settings.TILES_LIMIT
 
 
 class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
@@ -125,10 +126,10 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM)
         if zoom_level < min_zoom or zoom_level > max_zoom:
             feedback.reportError(
-                f"【ズームレベルを変更してください】\n"
-                f"現在のズームレベル: {zoom_level} \n"
-                f"可能なズームレベル: {min_zoom}-{max_zoom} \n"
-                f"'{data_name}'のデータ範囲 (z{min_zoom}-{max_zoom}) 外です。処理を停止します。"
+                f"Specified zoom level (z{zoom_level}) is not available "
+                f"for data '{layer_key} ({data_name})' \n"
+                f"Available zoom levels: {min_zoom}-{max_zoom} \n"
+                f"Process stopping..."
             )
             return {}
 
@@ -144,6 +145,14 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             return {}
 
         feedback.pushInfo(f"Found {len(tileindex)} tiles to download")
+
+        if len(tileindex) > TILES_LIMIT:
+            feedback.reportError(
+                f"Too many tiles to download (Tiles limit: {TILES_LIMIT}).\n"
+                f"Please specified a zoom level lower than z{zoom_level} "
+                "or a smaller extent.\nProcess stopping..."
+            )
+            return {}
 
         # ダウンロード実行
         os.makedirs(TMP_PATH, exist_ok=True)
