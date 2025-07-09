@@ -23,7 +23,10 @@ TMP_PATH = os.path.join(tempfile.gettempdir(), "vtdownloader")
 SOURCE_LAYERS = settings.SOURCE_LAYERS
 DEFAULT_MIN_ZOOM = settings.DEFAULT_MIN_ZOOM
 DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
-
+_DESCRIPTION = """
+This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS.
+You can find information about the GSI Vector Tiles on the following site: <a href='https://maps.gsi.go.jp/development/vt.html'>https://maps.gsi.go.jp/development/vt.html</a>
+"""
 
 class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     INPUT_EXTENT = "INPUT_EXTENT"
@@ -41,6 +44,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             return f"{category}（{datatype}）- Zoom {minzoom}-{maxzoom} [{layer_key}]"
         else:
             return layer_key
+        
+    def shortHelpString(self):
+        return _DESCRIPTION
 
     def initAlgorithm(self, config=None):
         # Download-extent
