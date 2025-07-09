@@ -12,7 +12,7 @@ You can find information about the GSI Vector Tiles on the following site: https
 
 <img width="100" src="https://github.com/user-attachments/assets/cfa3e6fc-d844-4fdc-86dc-8e82d1c235e7" />
 
-- Select the vector tile you want by filling the following information:
+- Fill in the following information to select the vector tile you want:
   1. Download-extent
 
      (By clicking the cursor icon on the right, the current map canvas extent can be chosen)
