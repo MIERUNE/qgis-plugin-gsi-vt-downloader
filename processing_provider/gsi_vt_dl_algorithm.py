@@ -51,7 +51,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         minzoom = layer_value.get("minzoom", "")
         maxzoom = layer_value.get("maxzoom", "")
         if category:
-            return f"{category}（{datatype}）- Zoom {minzoom}-{maxzoom} [{layer_key}]"
+            return f"{layer_key}: {category}（{datatype}）z{minzoom}-{maxzoom}"
         else:
             return layer_key
 
@@ -198,7 +198,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 sink.addFeature(feature)
 
             # Set layer name for temporary scratch layer
-            layer_name = f"{data_name}_z{zoom_level}"
+            layer_name = f"{layer_key}_z{zoom_level}"
             if context.willLoadLayerOnCompletion(dest_id):
                 layer_details = context.layerToLoadOnCompletionDetails(dest_id)
                 layer_details.name = layer_name
