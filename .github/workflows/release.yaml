@@ -4,7 +4,7 @@ on:
     types: [published]
 
 env:
-  PLUGIN_NAME: qgis-plugin-gsi-vt-downloader
+  PLUGIN_NAME: gsivtdownloader
 jobs:
   release:
     runs-on: ubuntu-latest
