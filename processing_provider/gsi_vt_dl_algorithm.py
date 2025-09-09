@@ -5,12 +5,18 @@ import urllib.error
 import urllib.request
 
 import processing
-from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform,
-                       QgsProcessingAlgorithm, QgsProcessingParameterEnum,
-                       QgsProcessingParameterExtent,
-                       QgsProcessingParameterFolderDestination,
-                       QgsProcessingParameterNumber, QgsProject,
-                       QgsVectorFileWriter, QgsVectorLayer)
+from qgis.core import (
+    QgsCoordinateReferenceSystem,
+    QgsCoordinateTransform,
+    QgsProcessingAlgorithm,
+    QgsProcessingParameterEnum,
+    QgsProcessingParameterExtent,
+    QgsProcessingParameterFolderDestination,
+    QgsProcessingParameterNumber,
+    QgsProject,
+    QgsVectorFileWriter,
+    QgsVectorLayer,
+)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 from .. import settings
@@ -95,9 +101,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         # Output folder. If not specified, output is added as temporary layers
         self.addParameter(
             QgsProcessingParameterFolderDestination(
-                'OUTPUT_FOLDER',  
-                self.tr("Destination folder"),
-                optional=False
+                "OUTPUT_FOLDER", self.tr("Destination folder"), optional=False
             )
         )
 
@@ -109,9 +113,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         )
         zoom_level = self.parameterAsInt(parameters, self.ZOOM_LEVEL, context)
 
-        output_folder = self.parameterAsString(
-            parameters, 'OUTPUT_FOLDER', context
-        )
+        output_folder = self.parameterAsString(parameters, "OUTPUT_FOLDER", context)
         if output_folder:
             os.makedirs(output_folder, exist_ok=True)
 
@@ -193,16 +195,16 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             if output_folder:
                 # Save output to geopackage
                 output_path = os.path.join(output_folder, f"{layer_name}.gpkg")
-                
+
                 options = QgsVectorFileWriter.SaveVectorOptions()
                 options.driverName = "GPKG"
-                
+
                 # Return result tuple
                 writer_result_tuple = QgsVectorFileWriter.writeAsVectorFormatV3(
                     mergedlayer,
                     output_path,
                     QgsProject.instance().transformContext(),
-                    options
+                    options,
                 )
 
                 # Check the tuple first element which is status to validate
@@ -213,15 +215,16 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                     if layer.isValid():
                         QgsProject.instance().addMapLayer(layer)
                 else:
-                    feedback.reportError(f"Failed to save {layer_name}. Result : {writer_result_tuple}")
+                    feedback.reportError(
+                        f"Failed to save {layer_name}. Result : {writer_result_tuple}"
+                    )
 
             else:
                 # Load output as temporary layer
                 mergedlayer.setName(layer_name)
                 context.project().addMapLayer(mergedlayer)
 
-        
-        return{}
+        return {}
 
     def create_tile_index_from_bbox(
         self, leftbottom_lonlat, righttop_lonlat, zoom_level
