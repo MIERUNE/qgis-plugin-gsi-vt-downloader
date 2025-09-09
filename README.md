@@ -18,10 +18,10 @@
 - You can also find it in the Processing Toolbox -> GSI vector tiles downloader.
 - Set the following parameters:
 
-  - (1) Download-extent (By clicking the cursor icon on the right, the current map canvas extent will be selected)
-  - (2) Source-Layer
-  - (3) Zoom-level
-  - (4) Output-layer
+  - (1) Download extent (By clicking the cursor icon on the right, the current map canvas extent will be selected)
+  - (2) Source Layers
+  - (3) Zoom level
+  - (4) Output folder (if not specified, output will be loaded as temporary layers)
 
 - Click Run.
 
@@ -46,8 +46,11 @@
     - 右側のカーソルアイコンをクリックすると、現在のマップキャンバスの範囲が選択されます。
 
   - (2) ソースレイヤ
+    - [...]ボタンをクリックし、対象項目を選択
+ 
   - (3) ズームレベル
-  - (4) 出力レイヤ（オプション）
+  - (4) 出力フォルダ
+    - 指定しない場合、一次レイヤとして出力
 
 - ［実行］をクリックします。
 
