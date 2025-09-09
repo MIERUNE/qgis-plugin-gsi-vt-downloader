@@ -5,16 +5,12 @@ import urllib.error
 import urllib.request
 
 import processing
-from qgis.core import (
-    QgsCoordinateReferenceSystem,
-    QgsCoordinateTransform,
-    QgsProcessingAlgorithm,
-    QgsProcessingParameterEnum,
-    QgsProcessingParameterExtent,
-    QgsProcessingParameterFeatureSink,
-    QgsProcessingParameterNumber,
-    QgsVectorLayer,
-)
+from qgis.core import (QgsCoordinateReferenceSystem, QgsCoordinateTransform,
+                       QgsProcessingAlgorithm, QgsProcessingParameterEnum,
+                       QgsProcessingParameterExtent,
+                       QgsProcessingParameterFolderDestination,
+                       QgsProcessingParameterNumber, QgsProject,
+                       QgsVectorFileWriter, QgsVectorLayer)
 from qgis.PyQt.QtCore import QCoreApplication, QVariant
 
 from .. import settings
@@ -63,12 +59,12 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterExtent(
                 self.INPUT_EXTENT,
-                self.tr("Download-extent"),
+                self.tr("Download extent"),
                 optional=False,
             )
         )
 
-        # Source-layer
+        # Source-layers
         layer_options = []
         for key in SOURCE_LAYERS.keys():
             display_name = self._get_display_name(key)
@@ -77,7 +73,8 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterEnum(
                 self.SOURCE_LAYER,
-                self.tr("Source-layer"),
+                self.tr("Source layers"),
+                allowMultiple=True,
                 optional=False,
                 options=layer_options,
             )
@@ -87,7 +84,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         self.addParameter(
             QgsProcessingParameterNumber(
                 self.ZOOM_LEVEL,
-                self.tr("Zoom-level"),
+                self.tr("Zoom level"),
                 type=QgsProcessingParameterNumber.Integer,
                 minValue=4,
                 maxValue=16,
@@ -95,22 +92,28 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # Output-layer
+        # Output folder. If not specified, output is added as temporary layers
         self.addParameter(
-            QgsProcessingParameterFeatureSink(
-                self.OUTPUT,
-                self.tr("Output layer"),
-                optional=True,
+            QgsProcessingParameterFolderDestination(
+                'OUTPUT_FOLDER',  
+                self.tr("Destination folder"),
+                optional=False
             )
         )
 
     def processAlgorithm(self, parameters, context, feedback):
         # parameters
         extent = self.parameterAsExtent(parameters, self.INPUT_EXTENT, context)
-        source_layer_index = self.parameterAsEnum(
+        source_layer_indices = self.parameterAsEnums(
             parameters, self.SOURCE_LAYER, context
         )
         zoom_level = self.parameterAsInt(parameters, self.ZOOM_LEVEL, context)
+
+        output_folder = self.parameterAsString(
+            parameters, 'OUTPUT_FOLDER', context
+        )
+        if output_folder:
+            os.makedirs(output_folder, exist_ok=True)
 
         # convert extent to EPSG: 4326
         extent_crs = self.parameterAsExtentCrs(parameters, self.INPUT_EXTENT, context)
@@ -131,80 +134,94 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         righttop_lonlat = [extent.xMaximum(), extent.yMaximum()]
 
         layer_keys = list(SOURCE_LAYERS.keys())
-        layer_key = layer_keys[source_layer_index]
 
-        data_name = SOURCE_LAYERS[layer_key].get("category", "")
+        for source_layer_index in source_layer_indices:
+            layer_key = layer_keys[source_layer_index]
 
-        # ズームレベルが対象レイヤーの範囲内かチェック
-        layer_info = SOURCE_LAYERS[layer_key]
-        min_zoom = layer_info.get("minzoom", DEFAULT_MIN_ZOOM)
-        max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM)
-        if zoom_level < min_zoom or zoom_level > max_zoom:
-            feedback.reportError(
-                f"Specified zoom level (z{zoom_level}) is not available "
-                f"for data '{layer_key} ({data_name})' \n"
-                f"Available zoom levels: {min_zoom}-{max_zoom} \n"
-                f"Process stopping..."
+            data_name = SOURCE_LAYERS[layer_key].get("category", "")
+
+            # ズームレベルが対象レイヤーの範囲内かチェック
+            layer_info = SOURCE_LAYERS[layer_key]
+            min_zoom = layer_info.get("minzoom", DEFAULT_MIN_ZOOM)
+            max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM)
+            if zoom_level < min_zoom or zoom_level > max_zoom:
+                feedback.reportError(
+                    f"Specified zoom level (z{zoom_level}) is not available "
+                    f"for data '{layer_key} ({data_name})' \n"
+                    f"Available zoom levels: {min_zoom}-{max_zoom} \n"
+                    f"Process stopping..."
+                )
+                return {}
+
+            feedback.pushInfo(f"Downloading {layer_key} at zoom level {zoom_level}")
+
+            # タイルインデックス
+            tileindex = self.create_tile_index_from_bbox(
+                leftbottom_lonlat, righttop_lonlat, zoom_level
             )
-            return {}
 
-        feedback.pushInfo(f"Downloading {layer_key} at zoom level {zoom_level}")
+            if not tileindex:
+                feedback.reportError("No tiles found for the specified extent")
+                return {}
 
-        # タイルインデックス
-        tileindex = self.create_tile_index_from_bbox(
-            leftbottom_lonlat, righttop_lonlat, zoom_level
-        )
+            feedback.pushInfo(f"Found {len(tileindex)} tiles to download")
 
-        if not tileindex:
-            feedback.reportError("No tiles found for the specified extent")
-            return {}
+            if len(tileindex) > TILES_LIMIT:
+                feedback.reportError(
+                    f"Too many tiles to download (Tiles limit: {TILES_LIMIT}).\n"
+                    f"Please specified a zoom level lower than z{zoom_level} "
+                    "or a smaller extent.\nProcess stopping..."
+                )
+                return {}
 
-        feedback.pushInfo(f"Found {len(tileindex)} tiles to download")
+            # ダウンロード実行
+            os.makedirs(TMP_PATH, exist_ok=True)
+            mergedlayer = self.download_tiles(tileindex, layer_key, feedback)
 
-        if len(tileindex) > TILES_LIMIT:
-            feedback.reportError(
-                f"Too many tiles to download (Tiles limit: {TILES_LIMIT}).\n"
-                f"Please specified a zoom level lower than z{zoom_level} "
-                "or a smaller extent.\nProcess stopping..."
-            )
-            return {}
+            if mergedlayer is None:
+                feedback.reportError("No valid features found in the specified area")
+                return {}
 
-        # ダウンロード実行
-        os.makedirs(TMP_PATH, exist_ok=True)
-        mergedlayer = self.download_tiles(tileindex, layer_key, feedback)
+            # クリップ処理
+            bbox = self.make_bbox(leftbottom_lonlat, righttop_lonlat)
+            mergedlayer = self.clip_vlayer(bbox, mergedlayer)
+            feedback.pushInfo("✓ Successfully clipped features to specified extent")
+            feedback.pushInfo(f"Final feature count: {mergedlayer.featureCount()}")
 
-        if mergedlayer is None:
-            feedback.reportError("No valid features found in the specified area")
-            return {}
-
-        # クリップ処理
-        bbox = self.make_bbox(leftbottom_lonlat, righttop_lonlat)
-        mergedlayer = self.clip_vlayer(bbox, mergedlayer)
-        feedback.pushInfo("✓ Successfully clipped features to specified extent")
-        feedback.pushInfo(f"Final feature count: {mergedlayer.featureCount()}")
-
-        (sink, dest_id) = self.parameterAsSink(
-            parameters,
-            self.OUTPUT,
-            context,
-            mergedlayer.fields(),
-            mergedlayer.wkbType(),
-            mergedlayer.crs(),
-        )
-
-        if sink is not None:
-            features = mergedlayer.getFeatures()
-            for feature in features:
-                sink.addFeature(feature)
-
-            # Set layer name for temporary scratch layer
             layer_name = f"{layer_key}_z{zoom_level}"
-            if context.willLoadLayerOnCompletion(dest_id):
-                layer_details = context.layerToLoadOnCompletionDetails(dest_id)
-                layer_details.name = layer_name
-            return {self.OUTPUT: dest_id}
-        else:
-            return {self.OUTPUT: mergedlayer}
+
+            if output_folder:
+                # Save output to geopackage
+                output_path = os.path.join(output_folder, f"{layer_name}.gpkg")
+                
+                options = QgsVectorFileWriter.SaveVectorOptions()
+                options.driverName = "GPKG"
+                
+                # Return result tuple
+                writer_result_tuple = QgsVectorFileWriter.writeAsVectorFormatV3(
+                    mergedlayer,
+                    output_path,
+                    QgsProject.instance().transformContext(),
+                    options
+                )
+
+                # Check the tuple first element which is status to validate
+                if writer_result_tuple[0] == QgsVectorFileWriter.NoError:
+                    feedback.pushInfo(f"File saved : {output_path}")
+
+                    layer = QgsVectorLayer(output_path, layer_name, "ogr")
+                    if layer.isValid():
+                        QgsProject.instance().addMapLayer(layer)
+                else:
+                    feedback.reportError(f"Failed to save {layer_name}. Result : {writer_result_tuple}")
+
+            else:
+                # Load output as temporary layer
+                mergedlayer.setName(layer_name)
+                context.project().addMapLayer(mergedlayer)
+
+        
+        return{}
 
     def create_tile_index_from_bbox(
         self, leftbottom_lonlat, righttop_lonlat, zoom_level
