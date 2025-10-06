@@ -137,6 +137,8 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
         layer_keys = list(SOURCE_LAYERS.keys())
 
+        error_reported = []
+
         for source_layer_index in source_layer_indices:
             layer_key = layer_keys[source_layer_index]
 
@@ -147,13 +149,14 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             min_zoom = layer_info.get("minzoom", DEFAULT_MIN_ZOOM)
             max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM)
             if zoom_level < min_zoom or zoom_level > max_zoom:
-                feedback.reportError(
+                message = (
                     f"Specified zoom level (z{zoom_level}) is not available "
                     f"for data '{layer_key} ({data_name})' \n"
                     f"Available zoom levels: {min_zoom}-{max_zoom} \n"
-                    f"Process stopping..."
                 )
-                return {}
+                feedback.reportError(message)
+                error_reported.append(f"{layer_key} : {message}\n")
+                continue
 
             feedback.pushInfo(f"Downloading {layer_key} at zoom level {zoom_level}")
 
@@ -163,26 +166,32 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
 
             if not tileindex:
-                feedback.reportError("No tiles found for the specified extent")
-                return {}
+                message = "No tiles found for the specified extent"
+                feedback.reportError(message)
+                error_reported.append(f"{layer_key} : {message}\n")
+                continue
 
             feedback.pushInfo(f"Found {len(tileindex)} tiles to download")
 
             if len(tileindex) > TILES_LIMIT:
-                feedback.reportError(
+                message = (
                     f"Too many tiles to download (Tiles limit: {TILES_LIMIT}).\n"
                     f"Please specified a zoom level lower than z{zoom_level} "
                     "or a smaller extent.\nProcess stopping..."
                 )
-                return {}
+                feedback.reportError(message)
+                error_reported.append(f"{layer_key} : {message}\n")
+                continue
 
             # ダウンロード実行
             os.makedirs(TMP_PATH, exist_ok=True)
             mergedlayer = self.download_tiles(tileindex, layer_key, feedback)
 
             if mergedlayer is None:
-                feedback.reportError("No valid features found in the specified area")
-                return {}
+                message = "No valid features found in the specified area"
+                feedback.reportError(message)
+                error_reported.append(f"{layer_key} : {message}\n")
+                continue
 
             # クリップ処理
             bbox = self.make_bbox(leftbottom_lonlat, righttop_lonlat)
@@ -223,6 +232,11 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 # Load output as temporary layer
                 mergedlayer.setName(layer_name)
                 context.project().addMapLayer(mergedlayer)
+
+        if error_reported:
+            feedback.reportError("The following layers could not be downloaded:\n")
+            for error in error_reported:
+                feedback.reportError(error)
 
         return {}
 
