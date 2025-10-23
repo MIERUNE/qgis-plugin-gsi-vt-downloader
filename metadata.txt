@@ -1,6 +1,7 @@
 [general]
 name=GSI Vector Tiles Downloader
 qgisMinimumVersion=3.40
+qgisMaximumVersion=4.99
 about=A plugin to download and decode <a href='https://www.gsi.go.jp'>Geospatial Information Authority of Japan (GSI)</a> vector tiles. User can choose zoom-level and source-layers to be downloaded.
 description=国土地理院ベクトルタイルをダウンロードしベクタレイヤとして読み込むためのプラグイン。A plugin to download and decode GSI vector tiles.
 version={{PLUGIN_VERSION}}
