@@ -32,7 +32,7 @@ class VTDownloader:
         tool_button = QToolButton()
         icon = self.provider.icon()
         default_action = QAction(
-            icon, self.tr("gsi_vt_downloader"), self.iface.mainWindow()
+            icon, self.tr("Load GSI vector tiles"), self.iface.mainWindow()
         )
         default_action.triggered.connect(
             lambda: execAlgorithmDialog("gsivtdl:gsi_vt_downloader", {})
