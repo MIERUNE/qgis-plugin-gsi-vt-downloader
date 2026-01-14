@@ -46,7 +46,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             return layer_key
 
     def shortHelpString(self):
-        self.tr(
+        return self.tr(
             """This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS. You can find information about the GSI Vector Tiles on the following site: <a href='https://maps.gsi.go.jp/development/vt.html'>https://maps.gsi.go.jp/development/vt.html</a>"""
         )
 
@@ -122,7 +122,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 )
             except Exception as e:
                 feedback.reportError(
-                    self.tr(f"Coordinate transformation error: {str(e)}")
+                    self.tr("Coordinate transformation error: {error}").format(
+                        error=str(e)
+                    )
                 )
                 return {}
 
@@ -153,7 +155,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 continue
 
             feedback.pushInfo(
-                self.tr(f"Downloading {layer_key} at zoom level {zoom_level}")
+                self.tr("Downloading {layer_key} at zoom level {zoom_level}").format(
+                    layer_key=layer_key, zoom_level=zoom_level
+                )
             )
 
             # タイルインデックス
@@ -167,15 +171,17 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 error_reported.append(f"{layer_key} : {message}\n")
                 continue
 
-            feedback.pushInfo(self.tr(f"Found {len(tileindex)} tiles to download"))
+            feedback.pushInfo(
+                self.tr("Found {count} tiles to download").format(count=len(tileindex))
+            )
 
             if len(tileindex) > TILES_LIMIT:
                 message = (
-                    self.tr(
-                        f"Too many tiles to download (Tiles limit: {TILES_LIMIT}).\n"
-                    )
-                    + self.tr(
-                        f"Please specified a zoom level lower than z{zoom_level} "
+                    self.trself.tr(
+                        "Too many tiles to download (Tiles limit: {limit}).\n"
+                    ).format(limit=TILES_LIMIT)
+                    + self.tr("Please specify a zoom level lower than z{zoom} ").format(
+                        zoom=zoom_level
                     )
                     + self.tr("or a smaller extent.\nProcess stopping...")
                 )
@@ -200,7 +206,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 self.tr("✓ Successfully clipped features to specified extent")
             )
             feedback.pushInfo(
-                self.tr(f"Final feature count: {mergedlayer.featureCount()}")
+                self.tr("Final feature count: {count}").format(
+                    count=mergedlayer.featureCount()
+                )
             )
             layer_name = f"{layer_key}_z{zoom_level}"
 
@@ -221,7 +229,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
                 # Check the tuple first element which is status to validate
                 if writer_result_tuple[0] == QgsVectorFileWriter.NoError:
-                    feedback.pushInfo(self.tr(f"File saved : {output_path}"))
+                    feedback.pushInfo(
+                        self.tr("File saved : {path}").format(path=output_path)
+                    )
 
                     layer = QgsVectorLayer(output_path, layer_name, "ogr")
                     if layer.isValid():
@@ -229,7 +239,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 else:
                     feedback.reportError(
                         self.tr(
-                            f"Failed to save {layer_name}. Result : {writer_result_tuple}"
+                            "Failed to save {layer_name}. Result : {result}".format(
+                                layer_name=layer_name, result=writer_result_tuple
+                            )
                         )
                     )
 
@@ -340,25 +352,21 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             current_tileurl = settings.GIS_VECTOR_TILE_URL.format(z=z, x=x, y=y)
             target_path = os.path.join(TMP_PATH, str(z), str(x), f"{y}.pbf")
 
-            feedback.pushInfo(
-                self.trf(f"Processing tile {i + 1}/{total_tiles}: {x}/{y}/{z}")
-            )
-            feedback.pushInfo(self.trf(f"URL: {current_tileurl}"))
+            feedback.pushInfo(f"Processing tile {i + 1}/{total_tiles}: {x}/{y}/{z}")
+            feedback.pushInfo(f"URL: {current_tileurl}")
 
             if os.path.exists(target_path):
                 if os.path.getsize(target_path) == 0:
-                    feedback.pushInfo(self.trf(f"Removing empty file: {target_path}"))
+                    feedback.pushInfo(f"Removing empty file: {target_path}")
                     os.remove(target_path)
                 else:
                     feedback.pushInfo(
-                        self.trf(
-                            f"File already exists: {target_path} (size: {os.path.getsize(target_path)} bytes)"
-                        )
+                        f"File already exists: {target_path} (size: {os.path.getsize(target_path)} bytes)"
                     )
 
             if not os.path.exists(target_path):
                 try:
-                    feedback.pushInfo(self.trf(f"Downloading from: {current_tileurl}"))
+                    feedback.pushInfo(f"Downloading from: {current_tileurl}")
                     response = urllib.request.urlopen(
                         current_tileurl, timeout=settings.GIS_DOWNLOAD_TIMEOUT
                     )
@@ -368,65 +376,49 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                         with open(target_path, mode="wb") as f:
                             f.write(pbfdata)
                         feedback.pushInfo(
-                            self.trf(
-                                f"Downloaded {len(pbfdata)} bytes to {target_path}"
-                            )
+                            f"Downloaded {len(pbfdata)} bytes to {target_path}"
                         )
                     else:
-                        feedback.pushInfo(
-                            self.trf(f"Empty response for tile {x}/{y}/{z}")
-                        )
+                        feedback.pushInfo(f"Empty response for tile {x}/{y}/{z}")
                         continue
 
                 except urllib.error.HTTPError as e:
                     if e.code == 404:
-                        feedback.pushInfo(
-                            self.trf(f"Tile not found (404): {x}/{y}/{z}")
-                        )
+                        feedback.pushInfo(f"Tile not found (404): {x}/{y}/{z}")
                     else:
-                        feedback.pushInfo(
-                            self.trf(f"HTTP error {e.code} for tile {x}/{y}/{z}")
-                        )
+                        feedback.pushInfo(f"HTTP error {e.code} for tile {x}/{y}/{z}")
                     continue
                 except Exception as e:
-                    feedback.pushInfo(
-                        self.trf(f"Download error for tile {x}/{y}/{z}: {str(e)}")
-                    )
+                    feedback.pushInfo(f"Download error for tile {x}/{y}/{z}: {str(e)}")
                     continue
 
             if not os.path.exists(target_path):
                 feedback.pushInfo(
-                    self.trf(f"File not found after download attempt: {target_path}")
+                    f"File not found after download attempt: {target_path}"
                 )
                 continue
 
             try:
-                feedback.pushInfo(self.trf(f"Processing PBF file: {target_path}"))
+                feedback.pushInfo(f"Processing PBF file: {target_path}")
 
                 file_size = os.path.getsize(target_path)
-                feedback.pushInfo(self.trf(f"PBF file size: {file_size} bytes"))
+                feedback.pushInfo(f"PBF file size: {file_size} bytes")
 
                 if file_size == 0:
-                    feedback.pushInfo(
-                        self.trf(f"Empty PBF file, skipping: {target_path}")
-                    )
+                    feedback.pushInfo(f"Empty PBF file, skipping: {target_path}")
                     continue
 
                 if layer_key not in SOURCE_LAYERS:
                     feedback.pushInfo(
-                        self.trf(f"Layer key '{layer_key}' not found in SOURCE_LAYERS")
+                        f"Layer key '{layer_key}' not found in SOURCE_LAYERS"
                     )
-                    feedback.pushInfo(
-                        self.trf(f"Available keys: {list(SOURCE_LAYERS.keys())}")
-                    )
+                    feedback.pushInfo(f"Available keys: {list(SOURCE_LAYERS.keys())}")
                     continue
 
                 geometrytype = self.translate_gsitype_to_geometry(
                     SOURCE_LAYERS[layer_key]["datatype"]
                 )
-                feedback.pushInfo(
-                    self.trf(f"Geometry type for {layer_key}: {geometrytype}")
-                )
+                feedback.pushInfo(f"Geometry type for {layer_key}: {geometrytype}")
 
                 pbfuri = (
                     target_path
@@ -435,57 +427,50 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                     + "|geometrytype="
                     + geometrytype
                 )
-                feedback.pushInfo(self.trf(f"PBF URI: {pbfuri}"))
+                feedback.pushInfo(f"PBF URI: {pbfuri}")
                 pbflayer = QgsVectorLayer(pbfuri, "pbf", "ogr")
 
-                feedback.pushInfo(self.trf(f"Layer valid: {pbflayer.isValid()}"))
+                feedback.pushInfo(f"Layer valid: {pbflayer.isValid()}")
                 feedback.pushInfo(
-                    self.trf(
-                        f"Data provider valid: {pbflayer.dataProvider().isValid()}"
-                    )
+                    f"Data provider valid: {pbflayer.dataProvider().isValid()}"
                 )
-                feedback.pushInfo(self.trf(f"Feature count: {pbflayer.featureCount()}"))
-
+                feedback.pushInfo(f"Feature count: {pbflayer.featureCount()}")
                 if not pbflayer.isValid():
-                    feedback.pushInfo(self.trf(f"Invalid layer for tile {x}/{y}/{z}"))
+                    feedback.pushInfo(f"Invalid layer for tile {x}/{y}/{z}")
 
-                    feedback.pushInfo(self.trf("Trying to get layer info from PBF..."))
+                    feedback.pushInfo("Trying to get layer info from PBF...")
                     try:
                         from osgeo import ogr
 
                         ds = ogr.Open(target_path)
                         if ds:
                             feedback.pushInfo(
-                                self.trf(
-                                    f"OGR can open file. Layer count: {ds.GetLayerCount()}"
-                                )
+                                f"OGR can open file. Layer count: {ds.GetLayerCount()}"
                             )
                             for i in range(ds.GetLayerCount()):
                                 layer = ds.GetLayer(i)
                                 feedback.pushInfo(
-                                    self.trf(
-                                        f"Layer {i}: {layer.GetName()}, features: {layer.GetFeatureCount()}"
-                                    )
+                                    f"Layer {i}: {layer.GetName()}, features: {layer.GetFeatureCount()}"
                                 )
                         else:
-                            feedback.pushInfo(self.trf("OGR cannot open file"))
+                            feedback.pushInfo("OGR cannot open file")
                     except Exception as e:
-                        feedback.pushInfo(self.trf(f"OGR error: {str(e)}"))
+                        feedback.pushInfo(f"OGR error: {str(e)}")
                     continue
 
                 if pbflayer.dataProvider().isValid() and pbflayer.featureCount() > 0:
                     feedback.pushInfo(
-                        self.trf(f"Valid layer with {pbflayer.featureCount()} features")
+                        f"Valid layer with {pbflayer.featureCount()} features"
                     )
 
                     expressions = []
                     fields = pbflayer.dataProvider().fields()
-                    feedback.pushInfo(self.trf(f"Field count: {fields.count()}"))
+                    feedback.pushInfo(f"Field count: {fields.count()}")
 
                     for j in range(fields.count()):
                         field = fields.at(j)
                         feedback.pushInfo(
-                            self.trf(f"Field {j}: {field.name()} ({field.typeName()})")
+                            f"Field {j}: {field.name()} ({field.typeName()})"
                         )
 
                         expression = {
@@ -512,41 +497,35 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                     )["OUTPUT"]
                     pbflayers.append(refactored)
                     feedback.pushInfo(
-                        self.trf(
-                            f"Added refactored layer to collection. Total layers: {len(pbflayers)}"
-                        )
+                        f"Added refactored layer to collection. Total layers: {len(pbflayers)}"
                     )
                 else:
                     feedback.pushInfo(
-                        self.trf(
-                            f"Layer has no features or is invalid for tile {x}/{y}/{z}"
-                        )
+                        f"Layer has no features or is invalid for tile {x}/{y}/{z}"
                     )
 
             except Exception as e:
-                feedback.pushInfo(
-                    self.trf(f"Error processing tile {x}/{y}/{z}: {str(e)}")
-                )
+                feedback.pushInfo(f"Error processing tile {x}/{y}/{z}: {str(e)}")
                 import traceback
 
-                feedback.pushInfo(self.trf(f"Traceback: {traceback.format_exc()}"))
+                feedback.pushInfo(f"Traceback: {traceback.format_exc()}")
                 continue
 
         feedback.setProgress(90)
-        feedback.pushInfo(
-            self.trf(f"Download completed. Total valid layers: {len(pbflayers)}")
-        )
+        feedback.pushInfo(f"Download completed. Total valid layers: {len(pbflayers)}")
 
         if not pbflayers:
             feedback.pushInfo(
-                self.trf("No valid PBF layers found. Check the debug messages above.")
+                "No valid PBF layers found. Check the debug messages above."
             )
             return None
         elif len(pbflayers) == 1:
             mergedlayer = pbflayers[0]
-            feedback.pushInfo(self.trf("Using single layer"))
+            feedback.pushInfo(self.tr("Using single layer"))
         else:
-            feedback.pushInfo(self.trf(f"Merging {len(pbflayers)} layers"))
+            feedback.pushInfo(
+                self.tr("Merging {count} layers").format(count=len(pbflayers))
+            )
             merged_result = processing.run(
                 "native:mergevectorlayers",
                 {
