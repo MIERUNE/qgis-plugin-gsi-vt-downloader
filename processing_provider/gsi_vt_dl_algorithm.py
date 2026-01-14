@@ -177,7 +177,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
             if len(tileindex) > TILES_LIMIT:
                 message = (
-                    self.trself.tr(
+                    self.tr(
                         "Too many tiles to download (Tiles limit: {limit}).\n"
                     ).format(limit=TILES_LIMIT)
                     + self.tr("Please specify a zoom level lower than z{zoom} ").format(
