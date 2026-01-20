@@ -206,9 +206,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 self.tr("✓ Successfully clipped features to specified extent")
             )
             feedback.pushInfo(
-                self.tr("Final feature count: {count}").format(
-                    count=mergedlayer.featureCount()
-                )
+                self.tr("Final feature count: {}").format(mergedlayer.featureCount())
             )
             layer_name = f"{layer_key}_z{zoom_level}"
 
@@ -229,9 +227,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
                 # Check the tuple first element which is status to validate
                 if writer_result_tuple[0] == QgsVectorFileWriter.NoError:
-                    feedback.pushInfo(
-                        self.tr("File saved : {path}").format(path=output_path)
-                    )
+                    feedback.pushInfo(self.tr("File saved : {}").format(output_path))
 
                     layer = QgsVectorLayer(output_path, layer_name, "ogr")
                     if layer.isValid():
@@ -239,8 +235,8 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 else:
                     feedback.reportError(
                         self.tr(
-                            "Failed to save {layer_name}. Result : {result}".format(
-                                layer_name=layer_name, result=writer_result_tuple
+                            "Failed to save {}. Result : {}".format(
+                                layer_name, writer_result_tuple
                             )
                         )
                     )
@@ -523,9 +519,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             mergedlayer = pbflayers[0]
             feedback.pushInfo(self.tr("Using single layer"))
         else:
-            feedback.pushInfo(
-                self.tr("Merging {count} layers").format(count=len(pbflayers))
-            )
+            feedback.pushInfo(self.tr("Merging {} layers").format(len(pbflayers)))
             merged_result = processing.run(
                 "native:mergevectorlayers",
                 {
