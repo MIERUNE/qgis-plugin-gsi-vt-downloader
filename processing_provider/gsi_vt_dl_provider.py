@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from qgis.core import QgsProcessingProvider
+from qgis.PyQt.QtCore import QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 
 from .gsi_vt_dl_algorithm import GSIVectorTileDownloadAlgorithm
@@ -19,3 +20,6 @@ class GSIVectorTileProvider(QgsProcessingProvider):
     def icon(self):
         path = (Path(__file__).parent.parent / "imgs" / "icon.png").resolve()
         return QIcon(str(path))
+
+    def tr(self, string):
+        return QCoreApplication.translate("VTDownloader", string)

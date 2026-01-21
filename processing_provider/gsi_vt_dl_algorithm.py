@@ -568,4 +568,4 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         return GSIVectorTileDownloadAlgorithm()
 
     def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+        return QCoreApplication.translate("VTDownloader", string)
