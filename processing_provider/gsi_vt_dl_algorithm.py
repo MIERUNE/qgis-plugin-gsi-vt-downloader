@@ -25,18 +25,6 @@ TMP_PATH = os.path.join(tempfile.gettempdir(), "vtdownloader")
 SOURCE_LAYERS = settings.SOURCE_LAYERS
 DEFAULT_MIN_ZOOM = settings.DEFAULT_MIN_ZOOM
 DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
-
-_DESCRIPTION = """
-This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS.
-You can find information about the GSI Vector Tiles on the following site: <a href='https://maps.gsi.go.jp/development/vt.html'>https://maps.gsi.go.jp/development/vt.html</a>
-
---------------------------------------------------------------------
-
-このQGISプラグインは、国土地理院（GSI）のベクトルタイルをダウンロードし、QGISにレイヤとして追加します。
-国土地理院ベクトルタイルに関する情報は、以下のサイトから確認できます。
-<a href='https://maps.gsi.go.jp/development/vt.html'>https://maps.gsi.go.jp/development/vt.html</a>
-
-"""
 TILES_LIMIT = settings.TILES_LIMIT
 
 
@@ -58,7 +46,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             return layer_key
 
     def shortHelpString(self):
-        return _DESCRIPTION
+        return self.tr(
+            """This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS. You can find information about the GSI Vector Tiles on the following site: <a href='https://maps.gsi.go.jp/development/vt.html'>https://maps.gsi.go.jp/development/vt.html</a>"""
+        )
 
     def initAlgorithm(self, config=None):
         # Download-extent
@@ -127,9 +117,15 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
             try:
                 extent = transform.transformBoundingBox(extent)
-                feedback.pushInfo("Successfully transformed extent to EPSG:4326")
+                feedback.pushInfo(
+                    self.tr("Successfully transformed extent to EPSG:4326")
+                )
             except Exception as e:
-                feedback.reportError(f"Coordinate transformation error: {str(e)}")
+                feedback.reportError(
+                    self.tr("Coordinate transformation error: {error}").format(
+                        error=str(e)
+                    )
+                )
                 return {}
 
         leftbottom_lonlat = [extent.xMinimum(), extent.yMinimum()]
@@ -158,7 +154,11 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 error_reported.append(f"{layer_key} : {message}\n")
                 continue
 
-            feedback.pushInfo(f"Downloading {layer_key} at zoom level {zoom_level}")
+            feedback.pushInfo(
+                self.tr("Downloading {layer_key} at zoom level {zoom_level}").format(
+                    layer_key=layer_key, zoom_level=zoom_level
+                )
+            )
 
             # タイルインデックス
             tileindex = self.create_tile_index_from_bbox(
@@ -166,18 +166,24 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
 
             if not tileindex:
-                message = "No tiles found for the specified extent"
+                message = self.tr("No tiles found for the specified extent")
                 feedback.reportError(message)
                 error_reported.append(f"{layer_key} : {message}\n")
                 continue
 
-            feedback.pushInfo(f"Found {len(tileindex)} tiles to download")
+            feedback.pushInfo(
+                self.tr("Found {count} tiles to download").format(count=len(tileindex))
+            )
 
             if len(tileindex) > TILES_LIMIT:
                 message = (
-                    f"Too many tiles to download (Tiles limit: {TILES_LIMIT}).\n"
-                    f"Please specified a zoom level lower than z{zoom_level} "
-                    "or a smaller extent.\nProcess stopping..."
+                    self.tr(
+                        "Too many tiles to download (Tiles limit: {limit}).\n"
+                    ).format(limit=TILES_LIMIT)
+                    + self.tr("Please specify a zoom level lower than z{zoom} ").format(
+                        zoom=zoom_level
+                    )
+                    + self.tr("or a smaller extent.\nProcess stopping...")
                 )
                 feedback.reportError(message)
                 error_reported.append(f"{layer_key} : {message}\n")
@@ -188,7 +194,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             mergedlayer = self.download_tiles(tileindex, layer_key, feedback)
 
             if mergedlayer is None:
-                message = "No valid features found in the specified area"
+                message = self.tr("No valid features found in the specified area")
                 feedback.reportError(message)
                 error_reported.append(f"{layer_key} : {message}\n")
                 continue
@@ -196,9 +202,12 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             # クリップ処理
             bbox = self.make_bbox(leftbottom_lonlat, righttop_lonlat)
             mergedlayer = self.clip_vlayer(bbox, mergedlayer)
-            feedback.pushInfo("✓ Successfully clipped features to specified extent")
-            feedback.pushInfo(f"Final feature count: {mergedlayer.featureCount()}")
-
+            feedback.pushInfo(
+                self.tr("✓ Successfully clipped features to specified extent")
+            )
+            feedback.pushInfo(
+                self.tr("Final feature count: {}").format(mergedlayer.featureCount())
+            )
             layer_name = f"{layer_key}_z{zoom_level}"
 
             if output_folder:
@@ -218,14 +227,18 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
                 # Check the tuple first element which is status to validate
                 if writer_result_tuple[0] == QgsVectorFileWriter.NoError:
-                    feedback.pushInfo(f"File saved : {output_path}")
+                    feedback.pushInfo(self.tr("File saved : {}").format(output_path))
 
                     layer = QgsVectorLayer(output_path, layer_name, "ogr")
                     if layer.isValid():
                         QgsProject.instance().addMapLayer(layer)
                 else:
                     feedback.reportError(
-                        f"Failed to save {layer_name}. Result : {writer_result_tuple}"
+                        self.tr(
+                            "Failed to save {}. Result : {}".format(
+                                layer_name, writer_result_tuple
+                            )
+                        )
                     )
 
             else:
@@ -234,7 +247,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 context.project().addMapLayer(mergedlayer)
 
         if error_reported:
-            feedback.reportError("The following layers could not be downloaded:\n")
+            feedback.reportError(
+                self.tr("The following layers could not be downloaded:\n")
+            )
             for error in error_reported:
                 feedback.reportError(error)
 
@@ -409,7 +424,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                     + geometrytype
                 )
                 feedback.pushInfo(f"PBF URI: {pbfuri}")
-
                 pbflayer = QgsVectorLayer(pbfuri, "pbf", "ogr")
 
                 feedback.pushInfo(f"Layer valid: {pbflayer.isValid()}")
@@ -417,7 +431,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                     f"Data provider valid: {pbflayer.dataProvider().isValid()}"
                 )
                 feedback.pushInfo(f"Feature count: {pbflayer.featureCount()}")
-
                 if not pbflayer.isValid():
                     feedback.pushInfo(f"Invalid layer for tile {x}/{y}/{z}")
 
@@ -504,9 +517,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             return None
         elif len(pbflayers) == 1:
             mergedlayer = pbflayers[0]
-            feedback.pushInfo("Using single layer")
+            feedback.pushInfo(self.tr("Using single layer"))
         else:
-            feedback.pushInfo(f"Merging {len(pbflayers)} layers")
+            feedback.pushInfo(self.tr("Merging {} layers").format(len(pbflayers)))
             merged_result = processing.run(
                 "native:mergevectorlayers",
                 {
@@ -549,10 +562,10 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         return "gsi_vt_downloader"
 
     def displayName(self):
-        return self.tr("GSI Vector Tiles Downloader")
+        return self.tr("Load GSI Vector Tiles")
 
     def createInstance(self):
         return GSIVectorTileDownloadAlgorithm()
 
     def tr(self, string):
-        return QCoreApplication.translate("Processing", string)
+        return QCoreApplication.translate("GSIVectorTileDownloadAlgorithm", string)
