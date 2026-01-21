@@ -22,4 +22,4 @@ class GSIVectorTileProvider(QgsProcessingProvider):
         return QIcon(str(path))
 
     def tr(self, string):
-        return QCoreApplication.translate("VTDownloader", string)
+        return QCoreApplication.translate("GSIVectorTileProvider", string)
