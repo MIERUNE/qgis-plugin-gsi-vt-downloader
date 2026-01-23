@@ -1,7 +1,9 @@
 import contextlib
+import os
 
-from qgis.core import QgsApplication
+from qgis.core import QgsApplication, QgsSettings
 from qgis.gui import QgisInterface
+from qgis.PyQt.QtCore import QCoreApplication, QLocale, QTranslator
 from qgis.PyQt.QtWidgets import QAction, QToolButton
 
 from .processing_provider.gsi_vt_dl_provider import GSIVectorTileProvider
@@ -13,6 +15,21 @@ with contextlib.suppress(ImportError):
 class VTDownloader:
     def __init__(self, iface: QgisInterface):
         self.iface = iface
+        self.translator = None
+        self._setup_translation()
+
+    def _setup_translation(self):
+        locale = QgsSettings().value("locale/userLocale", QLocale().name())
+        locale_path = os.path.join(
+            os.path.dirname(__file__),
+            "i18n",
+            f"vtdownloader_{locale[:2]}.qm",
+        )
+
+        if os.path.exists(locale_path):
+            self.translator = QTranslator()
+            self.translator.load(locale_path)
+            QCoreApplication.installTranslator(self.translator)
 
     def initGui(self):
         self.provider = GSIVectorTileProvider()
