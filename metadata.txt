@@ -7,7 +7,6 @@ description=国土地理院ベクトルタイルをダウンロードしベク�
 version={{PLUGIN_VERSION}}
 
 hasProcessingProvider=yes
-supportsQt6=True
 
 #Plugin main icon
 icon=imgs/icon.png
