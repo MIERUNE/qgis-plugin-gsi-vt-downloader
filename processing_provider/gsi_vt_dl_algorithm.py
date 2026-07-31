@@ -176,14 +176,16 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
 
             if len(tileindex) > TILES_LIMIT:
-                message = (
-                    self.tr(
-                        "Too many tiles to download (Tiles limit: {limit}).\n"
-                    ).format(limit=TILES_LIMIT)
-                    + self.tr("Please specify a zoom level lower than z{zoom} ").format(
-                        zoom=zoom_level
-                    )
-                    + self.tr("or a smaller extent.\nProcess stopping...")
+                message = "".join(
+                    [
+                        self.tr(
+                            "Too many tiles to download (Tiles limit: {limit}).\n"
+                        ).format(limit=TILES_LIMIT),
+                        self.tr(
+                            "Please specify a zoom level lower than z{zoom} "
+                        ).format(zoom=zoom_level),
+                        self.tr("or a smaller extent.\nProcess stopping..."),
+                    ]
                 )
                 feedback.reportError(message)
                 error_reported.append(f"{layer_key} : {message}\n")
@@ -289,21 +291,16 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         n = 2.0**zoom_level
 
         tile_x = (lon + 180.0) / 360.0 * n
-        tile_y = (
-            (1.0 - math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad))) / math.pi)
-            / 2.0
-            * n
-        )
+        log_term = math.log(math.tan(lat_rad) + (1 / math.cos(lat_rad)))
+        tile_y = (1.0 - log_term / math.pi) / 2.0 * n
 
         return tile_x, tile_y
 
     def lonlat_to_webmercator(self, lonlat):
+        mercator_y = math.log(math.tan((90 + lonlat[1]) * math.pi / 360))
         return [
             lonlat[0] * 20037508.34 / 180,
-            math.log(math.tan((90 + lonlat[1]) * math.pi / 360))
-            / (math.pi / 180)
-            * 20037508.34
-            / 180,
+            mercator_y / (math.pi / 180) * 20037508.34 / 180,
         ]
 
     def make_rectangle_of(self, leftbottom, righttop):
@@ -419,11 +416,8 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 feedback.pushInfo(f"Geometry type for {layer_key}: {geometrytype}")
 
                 pbfuri = (
-                    target_path
-                    + "|layername="
-                    + layer_key
-                    + "|geometrytype="
-                    + geometrytype
+                    f"{target_path}|layername={layer_key}"
+                    f"|geometrytype={geometrytype}"
                 )
                 feedback.pushInfo(f"PBF URI: {pbfuri}")
                 pbflayer = QgsVectorLayer(pbfuri, "pbf", "ogr")
@@ -463,6 +457,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
                     expressions = []
                     fields = pbflayer.dataProvider().fields()
+                    double_fields = getattr(settings, "DOUBLE_FIELDS", ())
                     feedback.pushInfo(f"Field count: {fields.count()}")
 
                     for j in range(fields.count()):
@@ -478,10 +473,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                             "precision": 0,
                             "type": field.type(),
                         }
-                        if (
-                            hasattr(settings, "DOUBLE_FIELDS")
-                            and field.name() in settings.DOUBLE_FIELDS
-                        ):
+                        if field.name() in double_fields:
                             expression["type"] = QVariant.Double
                         expressions.append(expression)
 
