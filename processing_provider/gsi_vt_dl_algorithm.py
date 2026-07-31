@@ -363,7 +363,9 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             if not os.path.exists(target_path):
                 try:
                     feedback.pushInfo(f"Downloading from: {current_tileurl}")
-                    response = urllib.request.urlopen(
+                    # URL is generated from a fixed GSI HTTPS tile template.
+                    # Users control only tile coordinates derived from the selected map extent.
+                    response = urllib.request.urlopen(  # nosec B310
                         current_tileurl, timeout=settings.GIS_DOWNLOAD_TIMEOUT
                     )
                     pbfdata = response.read()
