@@ -81,7 +81,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber(
                 self.ZOOM_LEVEL,
                 self.tr("Zoom level"),
-                type=QgsProcessingParameterNumber.Integer,
+                type=QgsProcessingParameterNumber.Type.Integer,
                 minValue=4,
                 maxValue=16,
                 defaultValue=14,
