@@ -8,8 +8,16 @@ dependencies = []
 
 [dependency-groups]
 dev = [
+    "bandit[toml]>=1.8.0",
     "pyqt5-stubs>=5.15.6.0",
     "ruff>=0.8.2",
+]
+
+
+[tool.bandit]
+exclude_dirs = [
+    ".venv",  # uv sync creates it inside the repo, including in CI
+    "tests",  # test code legitimately uses assert (B101)
 ]
 
 
