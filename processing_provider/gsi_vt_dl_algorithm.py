@@ -81,7 +81,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             QgsProcessingParameterNumber(
                 self.ZOOM_LEVEL,
                 self.tr("Zoom level"),
-                type=QgsProcessingParameterNumber.Integer,
+                type=QgsProcessingParameterNumber.Type.Integer,
                 minValue=4,
                 maxValue=16,
                 defaultValue=14,
@@ -228,7 +228,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 )
 
                 # Check the tuple first element which is status to validate
-                if writer_result_tuple[0] == QgsVectorFileWriter.NoError:
+                if writer_result_tuple[0] == QgsVectorFileWriter.WriterError.NoError:
                     feedback.pushInfo(self.tr("File saved : {}").format(output_path))
 
                     layer = QgsVectorLayer(output_path, layer_name, "ogr")
