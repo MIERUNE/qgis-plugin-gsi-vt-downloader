@@ -4,20 +4,30 @@ import tempfile
 import urllib.error
 import urllib.request
 
-import processing
 from qgis.core import (
+    Qgis,
     QgsCoordinateReferenceSystem,
     QgsCoordinateTransform,
+    QgsCsException,
+    QgsFeature,
+    QgsFeatureRequest,
+    QgsField,
+    QgsFields,
     QgsProcessingAlgorithm,
+    QgsProcessingContext,
+    QgsProcessingException,
+    QgsProcessingMultiStepFeedback,
+    QgsProcessingOutputMultipleLayers,
     QgsProcessingParameterEnum,
     QgsProcessingParameterExtent,
     QgsProcessingParameterFolderDestination,
     QgsProcessingParameterNumber,
-    QgsProject,
+    QgsRectangle,
     QgsVectorFileWriter,
     QgsVectorLayer,
+    QgsWkbTypes,
 )
-from qgis.PyQt.QtCore import QCoreApplication, QVariant
+from qgis.PyQt.QtCore import QCoreApplication, QMetaType
 
 from .. import settings
 
@@ -27,12 +37,18 @@ DEFAULT_MIN_ZOOM = settings.DEFAULT_MIN_ZOOM
 DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
 TILES_LIMIT = settings.TILES_LIMIT
 
+# Webメルカトルで扱える範囲（EPSG:4326）
+WEB_MERCATOR_BOUNDS = QgsRectangle(-180.0, -85.0511287798066, 180.0, 85.0511287798066)
+
+NUMERIC_TYPES = (QMetaType.Type.Int, QMetaType.Type.LongLong, QMetaType.Type.Double)
+
 
 class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     INPUT_EXTENT = "INPUT_EXTENT"
     SOURCE_LAYER = "SOURCE_LAYER"
     ZOOM_LEVEL = "ZOOM_LEVEL"
-    OUTPUT = "OUTPUT"
+    OUTPUT_FOLDER = "OUTPUT_FOLDER"
+    OUTPUT_LAYERS = "OUTPUT_LAYERS"
 
     def _get_display_name(self, layer_key):
         layer_value = SOURCE_LAYERS[layer_key]
@@ -88,192 +104,179 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
         )
 
-        # Output folder. If not specified, output is added as temporary layers
+        # Output folder. If not specified, a temporary folder is used
         self.addParameter(
             QgsProcessingParameterFolderDestination(
-                "OUTPUT_FOLDER", self.tr("Destination folder"), optional=False
+                self.OUTPUT_FOLDER, self.tr("Destination folder"), optional=False
             )
         )
+
+        # GeoPackages written to the output folder, one per source layer
+        self.addOutput(
+            QgsProcessingOutputMultipleLayers(
+                self.OUTPUT_LAYERS, self.tr("Output layers")
+            )
+        )
+
+    def checkParameterValues(self, parameters, context):
+        ok, message = super().checkParameterValues(parameters, context)
+        if not ok:
+            return ok, message
+        error = self._validate_parameters(parameters, context)
+        if error:
+            return False, error
+        return True, ""
 
     def processAlgorithm(self, parameters, context, feedback):
-        # parameters
-        extent = self.parameterAsExtent(parameters, self.INPUT_EXTENT, context)
-        source_layer_indices = self.parameterAsEnums(
-            parameters, self.SOURCE_LAYER, context
-        )
+        # checkParameterValues() is not called by every caller, so validate again
+        error = self._validate_parameters(parameters, context)
+        if error:
+            raise QgsProcessingException(error)
+
+        layer_keys = self._selected_layer_keys(parameters, context)
         zoom_level = self.parameterAsInt(parameters, self.ZOOM_LEVEL, context)
+        output_folder = self.parameterAsString(parameters, self.OUTPUT_FOLDER, context)
+        os.makedirs(output_folder, exist_ok=True)
 
-        output_folder = self.parameterAsString(parameters, "OUTPUT_FOLDER", context)
-        if output_folder:
-            os.makedirs(output_folder, exist_ok=True)
-
-        # convert extent to EPSG: 4326
         extent_crs = self.parameterAsExtentCrs(parameters, self.INPUT_EXTENT, context)
         feedback.pushInfo(f"Input extent CRS: {extent_crs.authid()}")
-
-        if extent_crs.authid() != "EPSG:4326":
-            transform = QgsCoordinateTransform(
-                extent_crs, QgsCoordinateReferenceSystem("EPSG:4326"), context.project()
+        extent = self._extent_in_wgs84(parameters, context)
+        if not extent_crs.isValid():
+            feedback.pushWarning(
+                self.tr("The extent has no CRS. It is assumed to be EPSG:4326.")
             )
-            try:
-                extent = transform.transformBoundingBox(extent)
-                feedback.pushInfo(
-                    self.tr("Successfully transformed extent to EPSG:4326")
-                )
-            except Exception as e:
-                feedback.reportError(
-                    self.tr("Coordinate transformation error: {error}").format(
-                        error=str(e)
-                    )
-                )
-                return {}
+        elif extent_crs != QgsCoordinateReferenceSystem("EPSG:4326"):
+            feedback.pushInfo(self.tr("Successfully transformed extent to EPSG:4326"))
 
         leftbottom_lonlat = [extent.xMinimum(), extent.yMinimum()]
         righttop_lonlat = [extent.xMaximum(), extent.yMaximum()]
 
-        layer_keys = list(SOURCE_LAYERS.keys())
+        # タイルインデックス
+        tileindex = self.create_tile_index_from_bbox(
+            leftbottom_lonlat, righttop_lonlat, zoom_level
+        )
+        feedback.pushInfo(
+            self.tr("Found {count} tiles to download").format(count=len(tileindex))
+        )
 
-        error_reported = []
+        # ステップ0でタイルをダウンロードし、以降はレイヤごとに書き出す
+        steps = QgsProcessingMultiStepFeedback(len(layer_keys) + 1, feedback)
+        os.makedirs(TMP_PATH, exist_ok=True)
+        tile_paths = self.download_tiles(tileindex, steps)
 
-        for source_layer_index in source_layer_indices:
-            layer_key = layer_keys[source_layer_index]
+        bbox = self.make_bbox(leftbottom_lonlat, righttop_lonlat)
+        rect = QgsRectangle(bbox[0], bbox[2], bbox[1], bbox[3])
 
-            data_name = SOURCE_LAYERS[layer_key].get("category", "")
-
-            # ズームレベルが対象レイヤーの範囲内かチェック
-            layer_info = SOURCE_LAYERS[layer_key]
-            min_zoom = layer_info.get("minzoom", DEFAULT_MIN_ZOOM)
-            max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM)
-            if zoom_level < min_zoom or zoom_level > max_zoom:
-                message = (
-                    f"Specified zoom level (z{zoom_level}) is not available "
-                    f"for data '{layer_key} ({data_name})' \n"
-                    f"Available zoom levels: {min_zoom}-{max_zoom} \n"
-                )
-                feedback.reportError(message)
-                error_reported.append(f"{layer_key} : {message}\n")
-                continue
-
+        output_layers = []
+        for step, layer_key in enumerate(layer_keys, start=1):
+            if steps.isCanceled():
+                break
+            steps.setCurrentStep(step)
             feedback.pushInfo(
-                self.tr("Downloading {layer_key} at zoom level {zoom_level}").format(
+                self.tr("Extracting {layer_key} at zoom level {zoom_level}").format(
                     layer_key=layer_key, zoom_level=zoom_level
                 )
             )
 
-            # タイルインデックス
-            tileindex = self.create_tile_index_from_bbox(
-                leftbottom_lonlat, righttop_lonlat, zoom_level
-            )
-
-            if not tileindex:
-                message = self.tr("No tiles found for the specified extent")
-                feedback.reportError(message)
-                error_reported.append(f"{layer_key} : {message}\n")
-                continue
-
-            feedback.pushInfo(
-                self.tr("Found {count} tiles to download").format(count=len(tileindex))
-            )
-
-            if len(tileindex) > TILES_LIMIT:
-                message = "".join(
-                    [
-                        self.tr(
-                            "Too many tiles to download (Tiles limit: {limit}).\n"
-                        ).format(limit=TILES_LIMIT),
-                        self.tr(
-                            "Please specify a zoom level lower than z{zoom} "
-                        ).format(zoom=zoom_level),
-                        self.tr("or a smaller extent.\nProcess stopping..."),
-                    ]
-                )
-                feedback.reportError(message)
-                error_reported.append(f"{layer_key} : {message}\n")
-                continue
-
-            # ダウンロード実行
-            os.makedirs(TMP_PATH, exist_ok=True)
-            mergedlayer = self.download_tiles(tileindex, layer_key, feedback)
-
-            if mergedlayer is None:
-                message = self.tr("No valid features found in the specified area")
-                feedback.reportError(message)
-                error_reported.append(f"{layer_key} : {message}\n")
-                continue
-
-            # クリップ処理
-            bbox = self.make_bbox(leftbottom_lonlat, righttop_lonlat)
-            mergedlayer = self.clip_vlayer(bbox, mergedlayer)
-            feedback.pushInfo(
-                self.tr("✓ Successfully clipped features to specified extent")
-            )
-            feedback.pushInfo(
-                self.tr("Final feature count: {}").format(mergedlayer.featureCount())
-            )
             layer_name = f"{layer_key}_z{zoom_level}"
+            output_path = os.path.join(output_folder, f"{layer_name}.gpkg")
+            count = self.write_layer(
+                tile_paths, layer_key, rect, output_path, layer_name, context, steps
+            )
+            if count is None:  # canceled
+                break
+            if count == 0:
+                feedback.pushWarning(
+                    f"{layer_key}: "
+                    + self.tr("No valid features found in the specified area")
+                )
+                continue
 
-            if output_folder:
-                # Save output to geopackage
-                output_path = os.path.join(output_folder, f"{layer_name}.gpkg")
+            feedback.pushInfo(self.tr("Final feature count: {}").format(count))
+            feedback.pushInfo(self.tr("File saved : {}").format(output_path))
+            output_layers.append(output_path)
 
-                options = QgsVectorFileWriter.SaveVectorOptions()
-                options.driverName = "GPKG"
-
-                # Return result tuple
-                writer_result_tuple = QgsVectorFileWriter.writeAsVectorFormatV3(
-                    mergedlayer,
+            # Processing adds the layer to the project on the main thread
+            # once the algorithm has finished
+            if context.project() is not None:
+                context.addLayerToLoadOnCompletion(
                     output_path,
-                    QgsProject.instance().transformContext(),
-                    options,
+                    QgsProcessingContext.LayerDetails(
+                        layer_name, context.project(), self.OUTPUT_LAYERS
+                    ),
                 )
 
-                # Check the tuple first element which is status to validate
-                if writer_result_tuple[0] == QgsVectorFileWriter.WriterError.NoError:
-                    feedback.pushInfo(self.tr("File saved : {}").format(output_path))
-
-                    layer = QgsVectorLayer(output_path, layer_name, "ogr")
-                    if layer.isValid():
-                        QgsProject.instance().addMapLayer(layer)
-                else:
-                    feedback.reportError(
-                        self.tr(
-                            "Failed to save {}. Result : {}".format(
-                                layer_name, writer_result_tuple
-                            )
-                        )
-                    )
-
-            else:
-                # Load output as temporary layer
-                mergedlayer.setName(layer_name)
-                context.project().addMapLayer(mergedlayer)
-
-        if error_reported:
-            feedback.reportError(
-                self.tr("The following layers could not be downloaded:\n")
+        if not output_layers and not feedback.isCanceled():
+            raise QgsProcessingException(
+                self.tr("No valid features found in the specified area")
             )
-            for error in error_reported:
-                feedback.reportError(error)
 
-        return {}
+        return {self.OUTPUT_FOLDER: output_folder, self.OUTPUT_LAYERS: output_layers}
+
+    def _selected_layer_keys(self, parameters, context):
+        layer_keys = list(SOURCE_LAYERS.keys())
+        indices = self.parameterAsEnums(parameters, self.SOURCE_LAYER, context)
+        return [layer_keys[index] for index in indices]
+
+    def _extent_in_wgs84(self, parameters, context):
+        """ダウンロード範囲をEPSG:4326に変換し、Webメルカトルの範囲内に収めて返す"""
+        extent = self.parameterAsExtent(parameters, self.INPUT_EXTENT, context)
+        extent_crs = self.parameterAsExtentCrs(parameters, self.INPUT_EXTENT, context)
+        wgs84 = QgsCoordinateReferenceSystem("EPSG:4326")
+        if extent_crs.isValid() and extent_crs != wgs84:
+            transform = QgsCoordinateTransform(
+                extent_crs, wgs84, context.transformContext()
+            )
+            extent = transform.transformBoundingBox(extent)
+        return extent.intersect(WEB_MERCATOR_BOUNDS)
+
+    def _validate_parameters(self, parameters, context):
+        """ダウンロードできない指定であればエラーメッセージを返す"""
+        zoom_level = self.parameterAsInt(parameters, self.ZOOM_LEVEL, context)
+
+        # ズームレベルが対象レイヤーの範囲内かチェック
+        unavailable = []
+        for layer_key in self._selected_layer_keys(parameters, context):
+            layer_info = SOURCE_LAYERS[layer_key]
+            min_zoom = layer_info.get("minzoom", DEFAULT_MIN_ZOOM)
+            max_zoom = layer_info.get("maxzoom", DEFAULT_MAX_ZOOM)
+            if zoom_level < min_zoom or zoom_level > max_zoom:
+                unavailable.append(f"{layer_key} (z{min_zoom}-{max_zoom})")
+        if unavailable:
+            return self.tr("Zoom level z{zoom} is not available for: {layers}").format(
+                zoom=zoom_level, layers=", ".join(unavailable)
+            )
+
+        try:
+            extent = self._extent_in_wgs84(parameters, context)
+        except QgsCsException as e:
+            return self.tr("Coordinate transformation error: {error}").format(
+                error=str(e)
+            )
+        if extent.isNull():
+            return self.tr("No tiles found for the specified extent")
+
+        # タイル数はリストを作らずに数える（広い範囲では膨大になるため）
+        x_start, x_end, y_start, y_end = self._tile_range(
+            [extent.xMinimum(), extent.yMinimum()],
+            [extent.xMaximum(), extent.yMaximum()],
+            zoom_level,
+        )
+        tile_count = (x_end - x_start + 1) * (y_end - y_start + 1)
+        if tile_count > TILES_LIMIT:
+            return self.tr(
+                "Too many tiles to download ({count} tiles, limit: {limit}). "
+                "Specify a lower zoom level or a smaller extent."
+            ).format(count=tile_count, limit=TILES_LIMIT)
+        return None
 
     def create_tile_index_from_bbox(
         self, leftbottom_lonlat, righttop_lonlat, zoom_level
     ):
         """指定されたBBoxとズームレベルをカバーするタイルインデックスを作成"""
-        lon_min, lat_min = leftbottom_lonlat
-        lon_max, lat_max = righttop_lonlat
-
-        x_start_float, y_start_float = self._lonlat_to_tile_xy(
-            lon_min, lat_max, zoom_level
+        x_start, x_end, y_start, y_end = self._tile_range(
+            leftbottom_lonlat, righttop_lonlat, zoom_level
         )
-
-        x_end_float, y_end_float = self._lonlat_to_tile_xy(lon_max, lat_min, zoom_level)
-
-        x_start = math.floor(x_start_float)
-        x_end = math.floor(x_end_float)
-        y_start = math.floor(y_start_float)
-        y_end = math.floor(y_end_float)
 
         # タイルインデックスのリストを生成
         covering_tiles = []
@@ -284,6 +287,30 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 covering_tiles.append([x, y, z])
 
         return covering_tiles
+
+    def _tile_range(self, leftbottom_lonlat, righttop_lonlat, zoom_level):
+        """指定されたBBoxをカバーするタイル座標の範囲を返す"""
+        lon_min, lat_min = leftbottom_lonlat
+        lon_max, lat_max = righttop_lonlat
+
+        x_start_float, y_start_float = self._lonlat_to_tile_xy(
+            lon_min, lat_max, zoom_level
+        )
+
+        x_end_float, y_end_float = self._lonlat_to_tile_xy(lon_max, lat_min, zoom_level)
+
+        # 経度180度などの端はタイル範囲の外になるため、存在するタイルに収める
+        max_index = 2**zoom_level - 1
+
+        def to_index(value):
+            return min(max(math.floor(value), 0), max_index)
+
+        return (
+            to_index(x_start_float),
+            to_index(x_end_float),
+            to_index(y_start_float),
+            to_index(y_end_float),
+        )
 
     def _lonlat_to_tile_xy(self, lon, lat, zoom_level):
         """緯度経度からタイル座標を計算"""
@@ -303,17 +330,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             mercator_y / (math.pi / 180) * 20037508.34 / 180,
         ]
 
-    def make_rectangle_of(self, leftbottom, righttop):
-        x1 = leftbottom[0]
-        y1 = leftbottom[1]
-        x2 = righttop[0]
-        y2 = righttop[1]
-        rectangle = {
-            "type": "Polygon",
-            "coordinates": [[[x1, y1], [x2, y1], [x2, y2], [x1, y2], [x1, y1]]],
-        }
-        return rectangle
-
     def make_bbox(self, leftbottom_lonlat, righttop_lonlat):
         leftbottom_as_3857 = self.lonlat_to_webmercator(leftbottom_lonlat)
         righttop_as_3857 = self.lonlat_to_webmercator(righttop_lonlat)
@@ -323,214 +339,190 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         yMax = righttop_as_3857[1]
         return [xMin, xMax, yMin, yMax]
 
-    def download_tiles(self, tileindex, layer_key, feedback):
-        self.make_xyz_dirs(tileindex)
-
-        pbflayers = []
-        total_tiles = len(tileindex)
-
-        feedback.pushInfo(
-            f"Starting download of {total_tiles} tiles for layer '{layer_key}'"
-        )
+    def download_tiles(self, tileindex, feedback):
+        """タイルをダウンロードし（キャッシュ済みのものは再利用）、取得できたタイルのパスを返す"""
+        tile_paths = []
+        failed_count = 0
+        last_error = ""
 
         for i, xyz in enumerate(tileindex):
             if feedback.isCanceled():
                 break
-
-            # ダウンロードフェーズ
-            download_progress = int(i * 70 / total_tiles)
-            feedback.setProgress(download_progress)
+            feedback.setProgress(100 * i / len(tileindex))
 
             x, y, z = xyz
-            current_tileurl = settings.GIS_VECTOR_TILE_URL.format(z=z, x=x, y=y)
             target_path = os.path.join(TMP_PATH, str(z), str(x), f"{y}.pbf")
 
-            feedback.pushInfo(f"Processing tile {i + 1}/{total_tiles}: {x}/{y}/{z}")
-            feedback.pushInfo(f"URL: {current_tileurl}")
-
-            if os.path.exists(target_path):
-                if os.path.getsize(target_path) == 0:
-                    feedback.pushInfo(f"Removing empty file: {target_path}")
-                    os.remove(target_path)
-                else:
-                    feedback.pushInfo(
-                        f"File already exists: {target_path} (size: {os.path.getsize(target_path)} bytes)"
-                    )
-
-            if not os.path.exists(target_path):
+            if not os.path.exists(target_path) or os.path.getsize(target_path) == 0:
+                current_tileurl = settings.GIS_VECTOR_TILE_URL.format(z=z, x=x, y=y)
                 try:
-                    feedback.pushInfo(f"Downloading from: {current_tileurl}")
                     # URL is generated from a fixed GSI HTTPS tile template.
                     # Users control only tile coordinates derived from the selected map extent.
                     response = urllib.request.urlopen(  # nosec B310
                         current_tileurl, timeout=settings.GIS_DOWNLOAD_TIMEOUT
                     )
                     pbfdata = response.read()
-
-                    if len(pbfdata) > 0:
-                        with open(target_path, mode="wb") as f:
-                            f.write(pbfdata)
-                        feedback.pushInfo(
-                            f"Downloaded {len(pbfdata)} bytes to {target_path}"
-                        )
-                    else:
-                        feedback.pushInfo(f"Empty response for tile {x}/{y}/{z}")
-                        continue
-
                 except urllib.error.HTTPError as e:
+                    # 404はデータのないタイル
                     if e.code == 404:
-                        feedback.pushInfo(f"Tile not found (404): {x}/{y}/{z}")
+                        feedback.pushDebugInfo(f"Tile not found (404): {x}/{y}/{z}")
                     else:
-                        feedback.pushInfo(f"HTTP error {e.code} for tile {x}/{y}/{z}")
+                        failed_count += 1
+                        last_error = f"HTTP {e.code} ({current_tileurl})"
                     continue
                 except Exception as e:
-                    feedback.pushInfo(f"Download error for tile {x}/{y}/{z}: {str(e)}")
+                    failed_count += 1
+                    last_error = f"{e} ({current_tileurl})"
                     continue
 
-            if not os.path.exists(target_path):
-                feedback.pushInfo(
-                    f"File not found after download attempt: {target_path}"
-                )
-                continue
-
-            try:
-                feedback.pushInfo(f"Processing PBF file: {target_path}")
-
-                file_size = os.path.getsize(target_path)
-                feedback.pushInfo(f"PBF file size: {file_size} bytes")
-
-                if file_size == 0:
-                    feedback.pushInfo(f"Empty PBF file, skipping: {target_path}")
+                if not pbfdata:
                     continue
 
-                if layer_key not in SOURCE_LAYERS:
-                    feedback.pushInfo(
-                        f"Layer key '{layer_key}' not found in SOURCE_LAYERS"
-                    )
-                    feedback.pushInfo(f"Available keys: {list(SOURCE_LAYERS.keys())}")
-                    continue
+                # 書き込み途中のファイルがキャッシュとして残らないよう、書き終えてから置き換える
+                os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                partial_path = f"{target_path}.part"
+                with open(partial_path, mode="wb") as f:
+                    f.write(pbfdata)
+                os.replace(partial_path, target_path)
 
-                geometrytype = self.translate_gsitype_to_geometry(
-                    SOURCE_LAYERS[layer_key]["datatype"]
+            tile_paths.append(target_path)
+
+        if failed_count:
+            feedback.pushWarning(
+                self.tr("{count} tiles could not be downloaded: {error}").format(
+                    count=failed_count, error=last_error
                 )
-                feedback.pushInfo(f"Geometry type for {layer_key}: {geometrytype}")
-
-                pbfuri = (
-                    f"{target_path}|layername={layer_key}"
-                    f"|geometrytype={geometrytype}"
-                )
-                feedback.pushInfo(f"PBF URI: {pbfuri}")
-                pbflayer = QgsVectorLayer(pbfuri, "pbf", "ogr")
-
-                feedback.pushInfo(f"Layer valid: {pbflayer.isValid()}")
-                feedback.pushInfo(
-                    f"Data provider valid: {pbflayer.dataProvider().isValid()}"
-                )
-                feedback.pushInfo(f"Feature count: {pbflayer.featureCount()}")
-                if not pbflayer.isValid():
-                    feedback.pushInfo(f"Invalid layer for tile {x}/{y}/{z}")
-
-                    feedback.pushInfo("Trying to get layer info from PBF...")
-                    try:
-                        from osgeo import ogr
-
-                        ds = ogr.Open(target_path)
-                        if ds:
-                            feedback.pushInfo(
-                                f"OGR can open file. Layer count: {ds.GetLayerCount()}"
-                            )
-                            for i in range(ds.GetLayerCount()):
-                                layer = ds.GetLayer(i)
-                                feedback.pushInfo(
-                                    f"Layer {i}: {layer.GetName()}, features: {layer.GetFeatureCount()}"
-                                )
-                        else:
-                            feedback.pushInfo("OGR cannot open file")
-                    except Exception as e:
-                        feedback.pushInfo(f"OGR error: {str(e)}")
-                    continue
-
-                if pbflayer.dataProvider().isValid() and pbflayer.featureCount() > 0:
-                    feedback.pushInfo(
-                        f"Valid layer with {pbflayer.featureCount()} features"
-                    )
-
-                    expressions = []
-                    fields = pbflayer.dataProvider().fields()
-                    double_fields = getattr(settings, "DOUBLE_FIELDS", ())
-                    feedback.pushInfo(f"Field count: {fields.count()}")
-
-                    for j in range(fields.count()):
-                        field = fields.at(j)
-                        feedback.pushInfo(
-                            f"Field {j}: {field.name()} ({field.typeName()})"
-                        )
-
-                        expression = {
-                            "expression": f'"{field.name()}"',
-                            "length": 0,
-                            "name": f"{field.name()}",
-                            "precision": 0,
-                            "type": field.type(),
-                        }
-                        if field.name() in double_fields:
-                            expression["type"] = QVariant.Double
-                        expressions.append(expression)
-
-                    refactored = processing.run(
-                        "qgis:refactorfields",
-                        {
-                            "INPUT": pbflayer,
-                            "OUTPUT": "TEMPORARY_OUTPUT",
-                            "FIELDS_MAPPING": expressions,
-                        },
-                    )["OUTPUT"]
-                    pbflayers.append(refactored)
-                    feedback.pushInfo(
-                        f"Added refactored layer to collection. Total layers: {len(pbflayers)}"
-                    )
-                else:
-                    feedback.pushInfo(
-                        f"Layer has no features or is invalid for tile {x}/{y}/{z}"
-                    )
-
-            except Exception as e:
-                feedback.pushInfo(f"Error processing tile {x}/{y}/{z}: {str(e)}")
-                import traceback
-
-                feedback.pushInfo(f"Traceback: {traceback.format_exc()}")
-                continue
-
-        feedback.setProgress(90)
-        feedback.pushInfo(f"Download completed. Total valid layers: {len(pbflayers)}")
-
-        if not pbflayers:
-            feedback.pushInfo(
-                "No valid PBF layers found. Check the debug messages above."
             )
+        return tile_paths
+
+    def write_layer(
+        self, tile_paths, layer_key, rect, output_path, layer_name, context, feedback
+    ):
+        """タイルから範囲内の地物を集めてGeoPackageに書き出し、地物数を返す（キャンセル時はNone）"""
+        geometrytype = self.translate_gsitype_to_geometry(
+            SOURCE_LAYERS[layer_key]["datatype"]
+        )
+        # 「範囲で抽出」（qgis:extractbyextent）と同じ条件
+        request = (
+            QgsFeatureRequest()
+            .setFilterRect(rect)
+            .setFlags(Qgis.FeatureRequestFlag.ExactIntersect)
+        )
+
+        # タイルごとに地物を読み込み、フィールドを1つのスキーマにまとめる
+        fields_by_name = {}
+        tiles = []
+        crs = None
+        wkb_type = None
+        for i, tile_path in enumerate(tile_paths):
+            if feedback.isCanceled():
+                return None
+            feedback.setProgress(50 * i / len(tile_paths))
+
+            pbfuri = f"{tile_path}|layername={layer_key}|geometrytype={geometrytype}"
+            pbflayer = QgsVectorLayer(pbfuri, "pbf", "ogr")
+            if not pbflayer.isValid():
+                continue
+            features = list(pbflayer.getFeatures(request))
+            if not features:
+                continue
+
+            self._merge_fields(fields_by_name, pbflayer.fields())
+            tiles.append((pbflayer.fields(), features))
+            if crs is None:
+                crs = pbflayer.crs()
+            # 線と面はタイルによって単一/マルチが混在するため、マルチに統一する
+            wkb_type = QgsWkbTypes.promoteNonPointTypesToMulti(pbflayer.wkbType())
+
+        if not tiles:
+            return 0
+        if feedback.isCanceled():
             return None
-        elif len(pbflayers) == 1:
-            mergedlayer = pbflayers[0]
-            feedback.pushInfo(self.tr("Using single layer"))
-        else:
-            feedback.pushInfo(self.tr("Merging {} layers").format(len(pbflayers)))
-            merged_result = processing.run(
-                "native:mergevectorlayers",
-                {
-                    "LAYERS": pbflayers,
-                    "OUTPUT": "TEMPORARY_OUTPUT",
-                },
+
+        fields = QgsFields()
+        for field in fields_by_name.values():
+            fields.append(field)
+
+        options = QgsVectorFileWriter.SaveVectorOptions()
+        options.driverName = "GPKG"
+        options.layerName = layer_name
+        options.fileEncoding = "UTF-8"
+        writer = QgsVectorFileWriter.create(
+            output_path, fields, wkb_type, crs, context.transformContext(), options
+        )
+        if writer.hasError() != QgsVectorFileWriter.WriterError.NoError:
+            raise QgsProcessingException(
+                self.tr("Failed to save {}. Result : {}").format(
+                    layer_name, writer.errorMessage()
+                )
             )
-            mergedlayer = merged_result["OUTPUT"]
 
-        feedback.setProgress(100)
-        return mergedlayer
+        count = 0
+        try:
+            for i, (tile_fields, features) in enumerate(tiles):
+                if feedback.isCanceled():
+                    break
+                indices = [tile_fields.lookupField(name) for name in fields.names()]
+                out_features = []
+                for feature in features:
+                    geometry = feature.geometry()
+                    if QgsWkbTypes.isMultiType(wkb_type):
+                        geometry.convertToMultiType()
+                    attributes = feature.attributes()
+                    out_feature = QgsFeature(fields)
+                    out_feature.setGeometry(geometry)
+                    out_feature.setAttributes(
+                        [attributes[index] if index >= 0 else None for index in indices]
+                    )
+                    out_features.append(out_feature)
+                if not writer.addFeatures(out_features):
+                    raise QgsProcessingException(
+                        self.tr("Failed to save {}. Result : {}").format(
+                            layer_name, writer.errorMessage()
+                        )
+                    )
+                count += len(out_features)
+                feedback.setProgress(50 + 50 * (i + 1) / len(tiles))
+        finally:
+            # 削除時にファイルが閉じられる
+            del writer
 
-    def make_xyz_dirs(self, tileindex):
-        for xyz in tileindex:
-            x = str(xyz[0])
-            z = str(xyz[2])
-            os.makedirs(os.path.join(TMP_PATH, z, x), exist_ok=True)
+        if feedback.isCanceled():
+            # 途中までの地物しかないファイルは残さない
+            os.remove(output_path)
+            return None
+        return count
+
+    def _merge_fields(self, fields_by_name, tile_fields):
+        """タイルのフィールドを追加する。タイル間で型が異なるフィールドは共通の型にする"""
+        double_fields = getattr(settings, "DOUBLE_FIELDS", ())
+        for tile_field in tile_fields:
+            name = tile_field.name()
+            # GeoPackageのフィールド名は大文字と小文字を区別しない
+            key = name.lower()
+            field_type = (
+                QMetaType.Type.Double if name in double_fields else tile_field.type()
+            )
+
+            if key not in fields_by_name:
+                if field_type == tile_field.type():
+                    fields_by_name[key] = QgsField(tile_field)
+                else:
+                    fields_by_name[key] = QgsField(name, field_type)
+                continue
+
+            current = fields_by_name[key]
+            if current.type() != field_type:
+                common_type = self._common_field_type(current.type(), field_type)
+                fields_by_name[key] = QgsField(current.name(), common_type)
+
+    def _common_field_type(self, type_a, type_b):
+        """2つのフィールド型の両方の値を表せる型を返す"""
+        if type_a in NUMERIC_TYPES and type_b in NUMERIC_TYPES:
+            if QMetaType.Type.Double in (type_a, type_b):
+                return QMetaType.Type.Double
+            return QMetaType.Type.LongLong
+        return QMetaType.Type.QString
 
     def translate_gsitype_to_geometry(self, gsitype):
         if gsitype == "点":
@@ -539,18 +531,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             return "LineString"
         else:
             return "Polygon"
-
-    def clip_vlayer(self, bbox, vlayer):
-        cliped = processing.run(
-            "qgis:extractbyextent",
-            {
-                "INPUT": vlayer,
-                "CLIP": False,
-                "EXTENT": "%s,%s,%s,%s" % (bbox[0], bbox[1], bbox[2], bbox[3]),
-                "OUTPUT": "memory:",
-            },
-        )["OUTPUT"]
-        return cliped
 
     def name(self):
         return "gsi_vt_downloader"
