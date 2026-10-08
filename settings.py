@@ -52,7 +52,7 @@ SOURCE_LAYERS = {
 }
 
 # データ型をDoubleにすべきフィールド名
-DOUBLE_FIELDS = ["arrngAgl", "alti", "depth"]
+DOUBLE_FIELDS = ["arrngAgl", "alti", "depth", "Width"]
 
 # デフォルトのズームレベル
 DEFAULT_MIN_ZOOM = 4
