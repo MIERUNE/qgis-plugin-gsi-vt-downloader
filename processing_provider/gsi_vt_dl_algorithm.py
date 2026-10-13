@@ -1,6 +1,7 @@
 import math
 import os
 import tempfile
+import time
 import urllib.error
 import urllib.request
 
@@ -36,6 +37,9 @@ SOURCE_LAYERS = settings.SOURCE_LAYERS
 DEFAULT_MIN_ZOOM = settings.DEFAULT_MIN_ZOOM
 DEFAULT_MAX_ZOOM = settings.DEFAULT_MAX_ZOOM
 TILES_LIMIT = settings.TILES_LIMIT
+
+# 404以外のエラーで取得できなかったタイルを試す回数
+DOWNLOAD_ATTEMPTS = 3
 
 # Webメルカトルで扱える範囲（EPSG:4326）
 WEB_MERCATOR_BOUNDS = QgsRectangle(-180.0, -85.0511287798066, 180.0, 85.0511287798066)
@@ -342,8 +346,6 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
     def download_tiles(self, tileindex, feedback):
         """タイルをダウンロードし（キャッシュ済みのものは再利用）、取得できたタイルのパスを返す"""
         tile_paths = []
-        failed_count = 0
-        last_error = ""
 
         for i, xyz in enumerate(tileindex):
             if feedback.isCanceled():
@@ -354,27 +356,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             target_path = os.path.join(TMP_PATH, str(z), str(x), f"{y}.pbf")
 
             if not os.path.exists(target_path) or os.path.getsize(target_path) == 0:
-                current_tileurl = settings.GIS_VECTOR_TILE_URL.format(z=z, x=x, y=y)
-                try:
-                    # URL is generated from a fixed GSI HTTPS tile template.
-                    # Users control only tile coordinates derived from the selected map extent.
-                    response = urllib.request.urlopen(  # nosec B310
-                        current_tileurl, timeout=settings.GIS_DOWNLOAD_TIMEOUT
-                    )
-                    pbfdata = response.read()
-                except urllib.error.HTTPError as e:
-                    # 404はデータのないタイル
-                    if e.code == 404:
-                        feedback.pushDebugInfo(f"Tile not found (404): {x}/{y}/{z}")
-                    else:
-                        failed_count += 1
-                        last_error = f"HTTP {e.code} ({current_tileurl})"
-                    continue
-                except Exception as e:
-                    failed_count += 1
-                    last_error = f"{e} ({current_tileurl})"
-                    continue
-
+                pbfdata = self._fetch_tile(x, y, z, feedback)
                 if not pbfdata:
                     continue
 
@@ -387,13 +369,40 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
             tile_paths.append(target_path)
 
-        if failed_count:
-            feedback.pushWarning(
-                self.tr("{count} tiles could not be downloaded: {error}").format(
-                    count=failed_count, error=last_error
-                )
-            )
         return tile_paths
+
+    def _fetch_tile(self, x, y, z, feedback):
+        """タイルを取得する。データのないタイル（404）とキャンセル時はNoneを返す"""
+        current_tileurl = settings.GIS_VECTOR_TILE_URL.format(z=z, x=x, y=y)
+        for attempt in range(1, DOWNLOAD_ATTEMPTS + 1):
+            try:
+                # URL is generated from a fixed GSI HTTPS tile template.
+                # Users control only tile coordinates derived from the selected map extent.
+                response = urllib.request.urlopen(  # nosec B310
+                    current_tileurl, timeout=settings.GIS_DOWNLOAD_TIMEOUT
+                )
+                return response.read()
+            except urllib.error.HTTPError as e:
+                # 404はデータのないタイル
+                if e.code == 404:
+                    feedback.pushDebugInfo(f"Tile not found (404): {x}/{y}/{z}")
+                    return None
+                error = f"HTTP {e.code} ({current_tileurl})"
+            except Exception as e:
+                error = f"{e} ({current_tileurl})"
+
+            if feedback.isCanceled():
+                return None
+            feedback.pushDebugInfo(f"Download attempt {attempt} failed: {error}")
+            if attempt < DOWNLOAD_ATTEMPTS:
+                time.sleep(attempt)
+
+        # 欠けたタイルがあるまま成功扱いにしない
+        raise QgsProcessingException(
+            self.tr(
+                "Could not download tile {z}/{x}/{y} after {attempts} attempts: {error}"
+            ).format(z=z, x=x, y=y, attempts=DOWNLOAD_ATTEMPTS, error=error)
+        )
 
     def write_layer(
         self, tile_paths, layer_key, rect, output_path, layer_name, context, feedback

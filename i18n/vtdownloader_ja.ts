@@ -97,9 +97,9 @@ Process stopping...</source>
         <translation>ダウンロードするタイルが多すぎます（{count} 個、上限 {limit} 個）。ズームレベルを下げるか、範囲を狭めてください。</translation>
     </message>
     <message>
-        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="392"/>
-        <source>{count} tiles could not be downloaded: {error}</source>
-        <translation>{count} 個のタイルをダウンロードできませんでした: {error}</translation>
+        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="403"/>
+        <source>Could not download tile {z}/{x}/{y} after {attempts} attempts: {error}</source>
+        <translation>タイル {z}/{x}/{y} を {attempts} 回試しましたが、ダウンロードできませんでした: {error}</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="197"/>

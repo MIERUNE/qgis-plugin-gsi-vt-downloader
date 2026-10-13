@@ -6,6 +6,7 @@ and downloads are stubbed out, so the tests do not access the GSI server.
 
 import importlib
 import importlib.util
+import io
 import os
 import sys
 import urllib.error
@@ -247,6 +248,53 @@ def test_fails_when_no_features_are_found(plugin, tile_cache, tmp_path):
     _, ok, _ = run(parameters(["building"], output_folder))
     assert not ok
     assert not os.path.exists(output_folder / "building_z16.gpkg")
+
+
+def test_fails_when_a_tile_cannot_be_downloaded(plugin, tmp_path, monkeypatch):
+    monkeypatch.setattr(gsi_vt_dl_algorithm, "TMP_PATH", str(tmp_path / "cache"))
+    monkeypatch.setattr(gsi_vt_dl_algorithm.time, "sleep", lambda seconds: None)
+    requested = []
+
+    def urlopen(url, timeout=None):
+        requested.append(url)
+        raise urllib.error.HTTPError(url, 503, "Service Unavailable", None, None)
+
+    monkeypatch.setattr(gsi_vt_dl_algorithm.urllib.request, "urlopen", urlopen)
+
+    output_folder = tmp_path / "output"
+    _, ok, _ = run(parameters(["road"], output_folder))
+    assert not ok
+    # retried, then stopped without requesting the remaining tile
+    assert len(requested) == gsi_vt_dl_algorithm.DOWNLOAD_ATTEMPTS
+    assert not os.path.exists(output_folder / "road_z16.gpkg")
+
+
+def test_retries_a_failed_download(plugin, tile_cache, tmp_path, monkeypatch):
+    x, y = TILE_A
+    tile_path = os.path.join(
+        gsi_vt_dl_algorithm.TMP_PATH, str(ZOOM), str(x), f"{y}.pbf"
+    )
+    with open(tile_path, "rb") as f:
+        tile_data = f.read()
+    os.remove(tile_path)
+
+    monkeypatch.setattr(gsi_vt_dl_algorithm.time, "sleep", lambda seconds: None)
+    requested = []
+
+    def urlopen(url, timeout=None):
+        requested.append(url)
+        # the first attempt fails, the second one succeeds
+        if len(requested) == 1:
+            raise urllib.error.HTTPError(url, 503, "Service Unavailable", None, None)
+        return io.BytesIO(tile_data)
+
+    monkeypatch.setattr(gsi_vt_dl_algorithm.urllib.request, "urlopen", urlopen)
+
+    results, ok, _ = run(parameters(["road"], tmp_path / "output"))
+    assert ok
+    assert len(requested) == 2
+    road = QgsVectorLayer(results["OUTPUT_LAYERS"][0], "road", "ogr")
+    assert road.featureCount() == 2
 
 
 def test_cancel_leaves_no_partial_file(plugin, tile_cache, tmp_path):
