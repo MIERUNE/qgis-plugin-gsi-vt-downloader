@@ -9,6 +9,7 @@ import importlib.util
 import io
 import os
 import sys
+import threading
 import urllib.error
 
 import pytest
@@ -295,6 +296,53 @@ def test_retries_a_failed_download(plugin, tile_cache, tmp_path, monkeypatch):
     assert len(requested) == 2
     road = QgsVectorLayer(results["OUTPUT_LAYERS"][0], "road", "ogr")
     assert road.featureCount() == 2
+
+
+def test_concurrent_downloads_of_the_same_tile(qgis_app, tile_cache, monkeypatch):
+    """Runs fetching the same tile at the same time must not share a temporary file"""
+    x, y = TILE_A
+    tile_dir = os.path.join(gsi_vt_dl_algorithm.TMP_PATH, str(ZOOM), str(x))
+    tile_path = os.path.join(tile_dir, f"{y}.pbf")
+    with open(tile_path, "rb") as f:
+        tile_data = f.read()
+    os.remove(tile_path)
+
+    monkeypatch.setattr(
+        gsi_vt_dl_algorithm.urllib.request,
+        "urlopen",
+        lambda url, timeout=None: io.BytesIO(tile_data),
+    )
+    # both downloads finish writing before either moves its file into the cache
+    barrier = threading.Barrier(2, timeout=10)
+    replace = os.replace
+
+    def replace_together(src, dst):
+        barrier.wait()
+        replace(src, dst)
+
+    monkeypatch.setattr(gsi_vt_dl_algorithm.os, "replace", replace_together)
+
+    alg = gsi_vt_dl_algorithm.GSIVectorTileDownloadAlgorithm()
+    results = []
+    errors = []
+
+    def download():
+        try:
+            results.append(alg.download_tiles([[x, y, ZOOM]], QgsProcessingFeedback()))
+        except Exception as e:
+            errors.append(repr(e))
+
+    threads = [threading.Thread(target=download) for _ in range(2)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    assert errors == []
+    assert results == [[tile_path], [tile_path]]
+    assert os.listdir(tile_dir) == [f"{y}.pbf"]  # no temporary files are left
+    with open(tile_path, "rb") as f:
+        assert f.read() == tile_data
 
 
 def test_cancel_leaves_no_partial_file(plugin, tile_cache, tmp_path):

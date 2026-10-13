@@ -4,6 +4,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import uuid
 
 from qgis.core import (
     Qgis,
@@ -360,12 +361,18 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 if not pbfdata:
                     continue
 
-                # 書き込み途中のファイルがキャッシュとして残らないよう、書き終えてから置き換える
+                # 書き込み途中のファイルがキャッシュとして残らないよう、書き終えてから置き換える。
+                # 同じタイルを同時に取得する別の処理と衝突しないよう、一時ファイル名は一意にする
                 os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                partial_path = f"{target_path}.part"
-                with open(partial_path, mode="wb") as f:
-                    f.write(pbfdata)
-                os.replace(partial_path, target_path)
+                partial_path = f"{target_path}.{uuid.uuid4().hex}.part"
+                try:
+                    with open(partial_path, mode="xb") as f:
+                        f.write(pbfdata)
+                    os.replace(partial_path, target_path)
+                except BaseException:
+                    if os.path.exists(partial_path):
+                        os.remove(partial_path)
+                    raise
 
             tile_paths.append(target_path)
 
