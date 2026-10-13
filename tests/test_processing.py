@@ -359,6 +359,20 @@ def test_cancel_leaves_no_partial_file(plugin, tile_cache, tmp_path):
     assert not os.path.exists(output_folder / "road_z16.gpkg")
 
 
+def test_write_error_leaves_no_partial_file(plugin, tile_cache, tmp_path, monkeypatch):
+    # e.g. the disk is full
+    monkeypatch.setattr(
+        gsi_vt_dl_algorithm.QgsVectorFileWriter,
+        "addFeatures",
+        lambda self, features, flags=None: False,
+    )
+    output_folder = tmp_path / "output"
+    _, ok, _ = run(parameters(["road"], output_folder))
+
+    assert not ok
+    assert not os.path.exists(output_folder / "road_z16.gpkg")
+
+
 def test_merge_fields_unifies_types_across_tiles(qgis_app):
     alg = gsi_vt_dl_algorithm.GSIVectorTileDownloadAlgorithm()
 

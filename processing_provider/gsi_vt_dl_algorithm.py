@@ -435,20 +435,17 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 return None
             feedback.setProgress(50 * i / len(tile_paths))
 
-            pbfuri = f"{tile_path}|layername={layer_key}|geometrytype={geometrytype}"
-            pbflayer = QgsVectorLayer(pbfuri, "pbf", "ogr")
-            if not pbflayer.isValid():
+            tile = self._read_tile(tile_path, layer_key, geometrytype, request)
+            if tile is None:
                 continue
-            features = list(pbflayer.getFeatures(request))
-            if not features:
-                continue
+            tile_fields, features, tile_crs, tile_wkb_type = tile
 
-            self._merge_fields(fields_by_name, pbflayer.fields())
-            tiles.append((pbflayer.fields(), features))
+            self._merge_fields(fields_by_name, tile_fields)
+            tiles.append((tile_fields, features))
             if crs is None:
-                crs = pbflayer.crs()
+                crs = tile_crs
             # 線と面はタイルによって単一/マルチが混在するため、マルチに統一する
-            wkb_type = QgsWkbTypes.promoteNonPointTypesToMulti(pbflayer.wkbType())
+            wkb_type = QgsWkbTypes.promoteNonPointTypesToMulti(tile_wkb_type)
 
         if not tiles:
             return 0
@@ -474,6 +471,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
             )
 
         count = 0
+        completed = False
         try:
             for i, (tile_fields, features) in enumerate(tiles):
                 if feedback.isCanceled():
@@ -499,15 +497,33 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                     )
                 count += len(out_features)
                 feedback.setProgress(50 + 50 * (i + 1) / len(tiles))
+            completed = not feedback.isCanceled()
         finally:
             # 削除時にファイルが閉じられる
             del writer
+            if not completed and os.path.exists(output_path):
+                # キャンセルやエラーで途中までの地物しかないファイルは残さない
+                os.remove(output_path)
 
-        if feedback.isCanceled():
-            # 途中までの地物しかないファイルは残さない
-            os.remove(output_path)
+        if not completed:
             return None
         return count
+
+    def _read_tile(self, tile_path, layer_key, geometrytype, request):
+        """タイルから範囲内の地物を読み込む。対象の地物がなければNoneを返す
+
+        タイルのレイヤはこのメソッドの中だけで使い、読み込み後すぐに閉じる。
+        QGIS 3.44は processAlgorithm() から送出された例外を保持し続けるため、
+        呼び出し元のフレームがレイヤを参照していると、失敗後もタイルのファイルが開いたままになる
+        """
+        pbfuri = f"{tile_path}|layername={layer_key}|geometrytype={geometrytype}"
+        pbflayer = QgsVectorLayer(pbfuri, "pbf", "ogr")
+        if not pbflayer.isValid():
+            return None
+        features = list(pbflayer.getFeatures(request))
+        if not features:
+            return None
+        return pbflayer.fields(), features, pbflayer.crs(), pbflayer.wkbType()
 
     def _merge_fields(self, fields_by_name, tile_fields):
         """タイルのフィールドを追加する。タイル間で型が異なるフィールドは共通の型にする"""
