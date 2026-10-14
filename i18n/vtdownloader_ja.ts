@@ -30,6 +30,16 @@
         <translation>出力フォルダ</translation>
     </message>
     <message>
+        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="117"/>
+        <source>Output layers</source>
+        <translation>出力レイヤ</translation>
+    </message>
+    <message>
+        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="146"/>
+        <source>The extent has no CRS. It is assumed to be EPSG:4326.</source>
+        <translation>ダウンロード範囲に座標参照系が設定されていないため、EPSG:4326 とみなします。</translation>
+    </message>
+    <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="120"/>
         <source>Successfully transformed extent to EPSG:4326</source>
         <translation>指定範囲をEPSG:4326へ正常に変換しました。</translation>
@@ -42,7 +52,17 @@
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="157"/>
         <source>Downloading {layer_key} at zoom level {zoom_level}</source>
-        <translation>{layer_key} をズームレベル {zoom_level} でダウンロードしています。</translation>
+        <translation type="obsolete">{layer_key} をズームレベル {zoom_level} でダウンロードしています。</translation>
+    </message>
+    <message>
+        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="176"/>
+        <source>Extracting {layer_key} at zoom level {zoom_level}</source>
+        <translation>{layer_key} をズームレベル {zoom_level} で抽出しています。</translation>
+    </message>
+    <message>
+        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="246"/>
+        <source>Zoom level z{zoom} is not available for: {layers}</source>
+        <translation>次のレイヤはズームレベル z{zoom} に対応していません: {layers}</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="169"/>
@@ -58,18 +78,28 @@
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="179"/>
         <source>Too many tiles to download (Tiles limit: {limit}).
 </source>
-        <translation>ダウンロードするタイルが多すぎます (Tiles limit: {limit}。</translation>
+        <translation type="obsolete">ダウンロードするタイルが多すぎます (Tiles limit: {limit}。</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="179"/>
         <source>Please specify a zoom level lower than z{zoom} </source>
-        <translation>ズームレベルを z{zoom} より小さい値を指定するか、</translation>
+        <translation type="obsolete">ズームレベルを z{zoom} より小さい値を指定するか、</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="179"/>
         <source>or a smaller extent.
 Process stopping...</source>
-        <translation>より狭い範囲を指定してください。処理を停止します...</translation>
+        <translation type="obsolete">より狭い範囲を指定してください。処理を停止します...</translation>
+    </message>
+    <message>
+        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="267"/>
+        <source>Too many tiles to download ({count} tiles, limit: {limit}). Specify a lower zoom level or a smaller extent.</source>
+        <translation>ダウンロードするタイルが多すぎます（{count} 個、上限 {limit} 個）。ズームレベルを下げるか、範囲を狭めてください。</translation>
+    </message>
+    <message>
+        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="403"/>
+        <source>Could not download tile {z}/{x}/{y} after {attempts} attempts: {error}</source>
+        <translation>タイル {z}/{x}/{y} を {attempts} 回試しましたが、ダウンロードできませんでした: {error}</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="197"/>
@@ -79,7 +109,7 @@ Process stopping...</source>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="205"/>
         <source>&#xe2;&#x9c;&#x93; Successfully clipped features to specified extent</source>
-        <translation>指定範囲で正常にクリップされました。</translation>
+        <translation type="obsolete">指定範囲で正常にクリップされました。</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="208"/>
@@ -100,17 +130,17 @@ Process stopping...</source>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="250"/>
         <source>The following layers could not be downloaded:
 </source>
-        <translation>以下のレイヤがダウンロードされませんでした。</translation>
+        <translation type="obsolete">以下のレイヤがダウンロードされませんでした。</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="520"/>
         <source>Using single layer</source>
-        <translation>単一レイヤを使用</translation>
+        <translation type="obsolete">単一レイヤを使用</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="522"/>
         <source>Merging {} layers</source>
-        <translation>{} レイヤをマージしています。</translation>
+        <translation type="obsolete">{} レイヤをマージしています。</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="565"/>

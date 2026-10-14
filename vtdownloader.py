@@ -15,6 +15,7 @@ with contextlib.suppress(ImportError):
 class VTDownloader:
     def __init__(self, iface: QgisInterface):
         self.iface = iface
+        self.provider = None
         self.translator = None
         self._setup_translation()
 
@@ -31,16 +32,22 @@ class VTDownloader:
             self.translator.load(locale_path)
             QCoreApplication.installTranslator(self.translator)
 
-    def initGui(self):
+    def initProcessing(self):
+        # Called on its own by qgis_process, which does not call initGui()
         self.provider = GSIVectorTileProvider()
         QgsApplication.processingRegistry().addProvider(self.provider)
+
+    def initGui(self):
+        self.initProcessing()
 
         if self.iface:
             self.setup_algorithm_tool_button()
 
     def unload(self):
         self.teardown_algorithm_tool_button()
-        QgsApplication.processingRegistry().removeProvider(self.provider)
+        if self.provider is not None:
+            QgsApplication.processingRegistry().removeProvider(self.provider)
+            self.provider = None
 
     def setup_algorithm_tool_button(self):
         if hasattr(self, "toolButtonAction") and self.toolButtonAction:

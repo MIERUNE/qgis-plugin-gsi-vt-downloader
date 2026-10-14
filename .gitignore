@@ -9,3 +9,5 @@ coverage.xml
 requirements.txt
 poetry.lock
 .ruff_cache
+# created by pytest-qgis test runs
+.qgis-settings/
