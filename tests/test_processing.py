@@ -251,13 +251,17 @@ def test_fails_when_no_features_are_found(plugin, tile_cache, tmp_path):
     assert not os.path.exists(output_folder / "building_z16.gpkg")
 
 
-def test_fails_when_a_tile_cannot_be_downloaded(plugin, tmp_path, monkeypatch):
+@pytest.mark.parametrize("failure", ["server_error", "empty_response"])
+def test_fails_when_a_tile_cannot_be_downloaded(plugin, tmp_path, monkeypatch, failure):
     monkeypatch.setattr(gsi_vt_dl_algorithm, "TMP_PATH", str(tmp_path / "cache"))
     monkeypatch.setattr(gsi_vt_dl_algorithm.time, "sleep", lambda seconds: None)
     requested = []
 
     def urlopen(url, timeout=None):
         requested.append(url)
+        if failure == "empty_response":
+            # tiles without data are 404, so an empty 200 is not a valid tile
+            return io.BytesIO(b"")
         raise urllib.error.HTTPError(url, 503, "Service Unavailable", None, None)
 
     monkeypatch.setattr(gsi_vt_dl_algorithm.urllib.request, "urlopen", urlopen)
@@ -366,6 +370,37 @@ def test_write_error_leaves_no_partial_file(plugin, tile_cache, tmp_path, monkey
         "addFeatures",
         lambda self, features, flags=None: False,
     )
+    output_folder = tmp_path / "output"
+    _, ok, _ = run(parameters(["road"], output_folder))
+
+    assert not ok
+    assert not os.path.exists(output_folder / "road_z16.gpkg")
+
+
+def test_create_error_leaves_no_partial_file(plugin, tile_cache, tmp_path, monkeypatch):
+    writer_class = gsi_vt_dl_algorithm.QgsVectorFileWriter
+
+    class FailedWriter:
+        """The file has been created, but the writer reports an error"""
+
+        def __init__(self, writer):
+            self.writer = writer
+
+        def hasError(self):
+            return writer_class.WriterError.ErrCreateDataSource
+
+        def errorMessage(self):
+            return "disk full"
+
+    class WriterClass:
+        SaveVectorOptions = writer_class.SaveVectorOptions
+        WriterError = writer_class.WriterError
+
+        @staticmethod
+        def create(*args):
+            return FailedWriter(writer_class.create(*args))
+
+    monkeypatch.setattr(gsi_vt_dl_algorithm, "QgsVectorFileWriter", WriterClass)
     output_folder = tmp_path / "output"
     _, ok, _ = run(parameters(["road"], output_folder))
 

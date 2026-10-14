@@ -388,7 +388,7 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 response = urllib.request.urlopen(  # nosec B310
                     current_tileurl, timeout=settings.GIS_DOWNLOAD_TIMEOUT
                 )
-                return response.read()
+                pbfdata = response.read()
             except urllib.error.HTTPError as e:
                 # 404はデータのないタイル
                 if e.code == 404:
@@ -397,6 +397,11 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
                 error = f"HTTP {e.code} ({current_tileurl})"
             except Exception as e:
                 error = f"{e} ({current_tileurl})"
+            else:
+                if pbfdata:
+                    return pbfdata
+                # データのないタイルには404が返るため、空の応答は取得の失敗として扱う
+                error = f"Empty response ({current_tileurl})"
 
             if feedback.isCanceled():
                 return None
@@ -463,16 +468,17 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
         writer = QgsVectorFileWriter.create(
             output_path, fields, wkb_type, crs, context.transformContext(), options
         )
-        if writer.hasError() != QgsVectorFileWriter.WriterError.NoError:
-            raise QgsProcessingException(
-                self.tr("Failed to save {}. Result : {}").format(
-                    layer_name, writer.errorMessage()
-                )
-            )
 
         count = 0
         completed = False
         try:
+            # 作成に失敗した場合も、作りかけのファイルが残り得るので後始末の対象にする
+            if writer.hasError() != QgsVectorFileWriter.WriterError.NoError:
+                raise QgsProcessingException(
+                    self.tr("Failed to save {}. Result : {}").format(
+                        layer_name, writer.errorMessage()
+                    )
+                )
             for i, (tile_fields, features) in enumerate(tiles):
                 if feedback.isCanceled():
                     break
