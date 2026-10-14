@@ -3,11 +3,17 @@
 <context>
     <name>GSIVectorTileDownloadAlgorithm</name>
     <message>
-        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="49"/>
-        <source>This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS. You can find information about the GSI Vector Tiles on the following site: &lt;a href=&apos;https://maps.gsi.go.jp/development/vt.html&apos;&gt;https://maps.gsi.go.jp/development/vt.html&lt;/a&gt;</source>
-        <translation>このQGISプラグインは、国土地理院（GSI）のベクトルタイルをダウンロードし、QGISにレイヤとして追加します。
-        国土地理院ベクトルタイルに関する情報は、以下のサイトから確認できます。
-        &lt;a href=&apos;https://maps.gsi.go.jp/development/vt.html&apos;&gt;https://maps.gsi.go.jp/development/vt.html&lt;/a&gt;</translation>
+        <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="72"/>
+        <source>Downloads GSI Japan vector tiles to GeoPackage.
+Fetches the tiles covering the extent (any CRS) at the zoom level and saves the features intersecting the extent of each selected source layer (e.g. road, building, contour) as one file in the destination folder (e.g. road_z14.gpkg).
+OUTPUT_LAYERS returns the saved file paths. The files are added to the project when results are loaded (e.g. from the toolbox), but not by processing.run().
+Source layers with no features in the extent are skipped. The run fails if the zoom level is outside the range of a selected layer (e.g. building: z13-16), more than {limit} tiles are needed, a tile fails to download after retries, or no features are found at all.
+Tile specification: &lt;a href=&apos;https://maps.gsi.go.jp/development/vt.html&apos;&gt;https://maps.gsi.go.jp/development/vt.html&lt;/a&gt;</source>
+        <translation>指定範囲の国土地理院ベクトルタイルをダウンロードし、GeoPackageに保存します。
+範囲（任意のCRS）をズームレベルで覆うタイルを取得し、選択したソースレイヤ（道路・建物・等高線など）ごとに、範囲と交差する地物を出力フォルダの1ファイル（例: road_z14.gpkg）に保存します。
+OUTPUT_LAYERS は保存したファイルのパスを返します。結果を読み込む実行（ツールボックスなど）ではプロジェクトに追加されますが、processing.run() では追加されません。
+範囲内に地物がないソースレイヤはスキップされます。ズームレベルが選択したレイヤの対応範囲外（例: building は z13〜16）の場合、必要なタイル数が {limit} を超える場合、再試行してもタイルをダウンロードできない場合、地物が1つも見つからない場合は失敗します。
+タイル仕様: &lt;a href=&apos;https://maps.gsi.go.jp/development/vt.html&apos;&gt;https://maps.gsi.go.jp/development/vt.html&lt;/a&gt;</translation>
     </message>
     <message>
         <location filename="../processing_provider/gsi_vt_dl_algorithm.py" line="55"/>

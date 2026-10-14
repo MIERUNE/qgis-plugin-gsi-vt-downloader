@@ -68,8 +68,23 @@ class GSIVectorTileDownloadAlgorithm(QgsProcessingAlgorithm):
 
     def shortHelpString(self):
         return self.tr(
-            """This QGIS plugin downloads vector tiles from the Geospatial Information Authority of Japan (GSI) and adds them as a layer to QGIS. You can find information about the GSI Vector Tiles on the following site: <a href='https://maps.gsi.go.jp/development/vt.html'>https://maps.gsi.go.jp/development/vt.html</a>"""
-        )
+            "Downloads GSI Japan vector tiles to GeoPackage.\n"
+            "Fetches the tiles covering the extent (any CRS) at the zoom level and "
+            "saves the features intersecting the extent of each selected source "
+            "layer (e.g. road, building, contour) as one file in the destination "
+            "folder (e.g. road_z14.gpkg).\n"
+            "OUTPUT_LAYERS returns the saved file paths. The files are added to "
+            "the project when results are loaded (e.g. from the toolbox), but not "
+            "by processing.run().\n"
+            "Source layers with no features in the extent are skipped. "
+            "The run fails if the zoom level is outside the range of a selected "
+            "layer (e.g. building: z13-16), more than {limit} tiles are needed, "
+            "a tile fails to download after retries, or no features are found "
+            "at all.\n"
+            "Tile specification: "
+            "<a href='https://maps.gsi.go.jp/development/vt.html'>"
+            "https://maps.gsi.go.jp/development/vt.html</a>"
+        ).format(limit=TILES_LIMIT)
 
     def initAlgorithm(self, config=None):
         # Download-extent
